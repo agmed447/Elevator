@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#3949ab">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>صيانة المصاعد</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root { --main:#3949ab; --green:#2e7d32; --red:#d32f2f; --bg:#fff; --line:#dcdfe6; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { margin:0; height:100%; font-family:system-ui, "Segoe UI", Tahoma, sans-serif; background:#eee; }
+  body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
+  button { font:inherit; cursor:pointer; }
+
+  #bar { background:var(--main); color:#fff; padding:10px 14px; display:flex; align-items:center; gap:10px;
+         padding-top:calc(10px + env(safe-area-inset-top)); z-index:1500; }
+  #bar .title { flex:1; font-weight:600; font-size:16px; line-height:1.3; }
+  #bar .title small { display:block; font-weight:400; opacity:.85; font-size:12px; }
+  .iconbtn { background:rgba(255,255,255,.18); color:#fff; border:0; border-radius:10px; width:42px; height:42px; font-size:20px; }
+
+  #map { flex:1; direction:ltr; position:relative; z-index:1; }
+
+  .fab { position:absolute; z-index:1200; width:54px; height:54px; border-radius:50%; border:0; color:#fff; font-size:24px;
+         box-shadow:0 3px 10px rgba(0,0,0,.35); }
+  #locBtn { background:#fff; color:#333; left:14px; bottom:98px; }
+  #addBtn { background:var(--main); right:14px; bottom:98px; width:auto; padding:0 20px; border-radius:28px; font-size:16px; }
+  #hint { position:absolute; z-index:1100; left:0; right:0; bottom:0; text-align:center; font-size:12px; color:#555;
+          background:rgba(255,255,255,.85); padding:5px; padding-bottom:calc(5px + env(safe-area-inset-bottom)); }
+
+  #crosshair { position:absolute; z-index:1300; left:50%; top:50%; width:44px; height:44px; margin:-44px 0 0 -22px; pointer-events:none; }
+  #addbar { position:absolute; z-index:1400; left:0; right:0; bottom:0; background:#fff; padding:12px 14px calc(12px + env(safe-area-inset-bottom));
+            box-shadow:0 -3px 12px rgba(0,0,0,.25); display:flex; gap:10px; align-items:center; }
+  #addbar span { flex:1; font-size:14px; }
+
+  .btn { border:0; border-radius:10px; padding:11px 18px; font-size:15px; }
+  .primary { background:var(--main); color:#fff; }
+  .ghost { background:#eceff1; color:#333; }
+  .danger { background:#ffebee; color:var(--red); }
+
+  .backdrop { position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:2000; display:none; }
+  .backdrop.show { display:block; }
+  .sheet { position:fixed; left:0; right:0; bottom:0; z-index:2100; background:#fff; border-radius:18px 18px 0 0;
+           padding:16px 16px calc(20px + env(safe-area-inset-bottom)); transform:translateY(105%); transition:transform .22s;
+           max-height:88dvh; overflow:auto; }
+  .sheet.show { transform:none; }
+  .sheet h2 { margin:0 0 4px; font-size:19px; }
+  .sheet .notes { color:#666; margin:0 0 8px; font-size:14px; }
+  .row { display:flex; gap:8px; align-items:center; }
+  .yearrow { justify-content:center; margin:8px 0; font-size:18px; font-weight:600; }
+  .yearrow button { background:#eceff1; border:0; border-radius:8px; width:40px; height:40px; font-size:18px; }
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .month { border:1px solid var(--line); background:#f6f7f9; border-radius:12px; padding:12px 4px; text-align:center; font-size:15px; }
+  .month.done { background:#e8f5e9; border-color:#81c784; color:var(--green); font-weight:600; }
+  .month.cur { outline:2px solid var(--main); }
+  .actions { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
+  .actions .btn { flex:1; text-align:center; text-decoration:none; }
+
+  .modal { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:2100; width:min(92vw,380px);
+           background:#fff; border-radius:16px; padding:18px; display:none; }
+  .modal.show { display:block; }
+  .modal h3 { margin:0 0 10px; }
+  .modal input { width:100%; padding:12px; margin-bottom:10px; border:1px solid var(--line); border-radius:10px; font:inherit; }
+
+  #listPanel { position:fixed; inset:0; z-index:2200; background:#fff; display:none; flex-direction:column; }
+  #listPanel.show { display:flex; }
+  #listHead { background:var(--main); color:#fff; padding:10px 14px; padding-top:calc(10px + env(safe-area-inset-top)); display:flex; gap:10px; align-items:center; }
+  #listHead b { flex:1; }
+  #search { margin:12px; padding:12px; border:1px solid var(--line); border-radius:10px; font:inherit; }
+  #items { flex:1; overflow:auto; }
+  .item { display:flex; align-items:center; gap:12px; padding:14px 16px; border-bottom:1px solid #eee; }
+  .dot { width:14px; height:14px; border-radius:50%; flex:none; }
+  .item small { color:#777; display:block; }
+  #listFoot { padding:10px 12px calc(10px + env(safe-area-inset-bottom)); display:flex; gap:8px; border-top:1px solid #eee; }
+  #listFoot .btn { flex:1; }
+  .empty { text-align:center; color:#888; padding:30px; }
+  .leaflet-control-attribution { font-size:9px; }
+</style>
+</head>
+<body>
+
+<div id="bar">
+  <div class="title"><span id="monthLabel"></span><small id="remainLabel"></small></div>
+  <button class="iconbtn" id="listBtn" aria-label="القائمة">☰</button>
+</div>
+
+<div id="map">
+  <button class="fab" id="locBtn" aria-label="موقعي">◎</button>
+  <button class="fab" id="addBtn">＋ عمارة</button>
+  <div id="hint">اضغط على العلامة لفتح جدول الصيانة</div>
+  <svg id="crosshair" viewBox="0 0 24 24" hidden><path d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z" fill="#3949ab" stroke="#fff" stroke-width="1"/></svg>
+  <div id="addbar" hidden>
+    <span>حرّك الخريطة لحد ما العلامة تبقى على العمارة</span>
+    <button class="btn ghost" id="addCancel">إلغاء</button>
+    <button class="btn primary" id="addOk">تأكيد</button>
+  </div>
+</div>
+
+<div class="backdrop" id="backdrop"></div>
+
+<div class="sheet" id="sheet"></div>
+
+<div class="modal" id="form">
+  <h3 id="formTitle">إضافة عمارة</h3>
+  <input id="fName" placeholder="اسم صاحب المصعد">
+  <input id="fNotes" placeholder="ملاحظات (اختياري)">
+  <div class="row">
+    <button class="btn ghost" id="fCancel" style="flex:1">إلغاء</button>
+    <button class="btn primary" id="fSave" style="flex:1">حفظ</button>
+  </div>
+</div>
+
+<div id="listPanel">
+  <div id="listHead"><button class="iconbtn" id="listClose">✕</button><b>العملاء</b></div>
+  <input id="search" placeholder="بحث بالاسم">
+  <div id="items"></div>
+  <div id="listFoot">
+    <button class="btn ghost" id="exportBtn">نسخة احتياطية</button>
+    <button class="btn ghost" id="importBtn">استرجاع</button>
+    <input type="file" id="importFile" accept="application/json" hidden>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const MONTHS = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+const KEY = 'elev_data_v1';
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// ---------------------------------------------------------------- data
+let data = loadData();
+function loadData() {
+  try {
+    const d = JSON.parse(localStorage.getItem(KEY));
+    if (d && Array.isArray(d.buildings) && d.visits) return d;
+  } catch (e) {}
+  return { buildings: [], visits: {} };
+}
+function save() { localStorage.setItem(KEY, JSON.stringify(data)); }
+const ym = (y, m) => y + '-' + String(m).padStart(2, '0');
+const isDone = (id, y, m) => (data.visits[id] || []).includes(ym(y, m));
+const nowY = () => new Date().getFullYear();
+const nowM = () => new Date().getMonth() + 1;
+
+// ---------------------------------------------------------------- map
+const map = L.map('map', { zoomControl: false, attributionControl: true }).setView([30.0444, 31.2357], 12);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '© OpenStreetMap'
+}).addTo(map);
+map.attributionControl.setPosition('topleft');
+
+const layer = L.layerGroup().addTo(map);
+let meMarker = null;
+
+function pinIcon(done) {
+  const c = done ? '#2e7d32' : '#d32f2f';
+  return L.divIcon({
+    className: '',
+    iconSize: [42, 42],
+    iconAnchor: [21, 42],
+    html: `<svg viewBox="0 0 24 24" width="42" height="42" style="filter:drop-shadow(0 2px 2px rgba(0,0,0,.45))">
+      <path d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z" fill="${c}" stroke="#fff" stroke-width="1"/></svg>`
+  });
+}
+
+function render() {
+  layer.clearLayers();
+  const y = nowY(), m = nowM();
+  let remaining = 0;
+  data.buildings.forEach(b => {
+    const done = isDone(b.id, y, m);
+    if (!done) remaining++;
+    L.marker([b.lat, b.lng], { icon: pinIcon(done) })
+      .on('click', () => openSheet(b.id))
+      .addTo(layer);
+  });
+  $('monthLabel').textContent = MONTHS[m - 1] + ' ' + y;
+  $('remainLabel').textContent = data.buildings.length
+    ? `باقي ${remaining} من ${data.buildings.length}`
+    : 'لسه مفيش عمارات';
+}
+
+function locate(silent) {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(pos => {
+    const ll = [pos.coords.latitude, pos.coords.longitude];
+    map.setView(ll, 16);
+    if (meMarker) meMarker.setLatLng(ll);
+    else meMarker = L.circleMarker(ll, { radius: 8, color: '#fff', weight: 3, fillColor: '#1976d2', fillOpacity: 1 }).addTo(map);
+  }, () => { if (!silent) alert('مش قادر أحدد موقعك. تأكد إن الموقع (GPS) شغال وإنك سمحت للمتصفح.'); },
+  { enableHighAccuracy: true, timeout: 10000 });
+}
+$('locBtn').onclick = () => locate(false);
+
+// ---------------------------------------------------------------- add building
+let pendingPos = null, editingId = null;
+
+function startAdd() {
+  $('crosshair').hidden = false;
+  $('addbar').hidden = false;
+  $('addBtn').style.display = 'none';
+  $('locBtn').style.display = 'none';
+  $('hint').style.display = 'none';
+}
+function endAdd() {
+  $('crosshair').hidden = true;
+  $('addbar').hidden = true;
+  $('addBtn').style.display = '';
+  $('locBtn').style.display = '';
+  $('hint').style.display = '';
+}
+$('addBtn').onclick = startAdd;
+$('addCancel').onclick = endAdd;
+$('addOk').onclick = () => {
+  pendingPos = map.getCenter();
+  endAdd();
+  openForm(null);
+};
+// الضغط المطوّل على الخريطة برضه بيضيف عمارة
+map.on('contextmenu', e => { pendingPos = e.latlng; openForm(null); });
+
+function openForm(id) {
+  editingId = id;
+  const b = id ? data.buildings.find(x => x.id === id) : null;
+  $('formTitle').textContent = b ? 'تعديل البيانات' : 'إضافة عمارة';
+  $('fName').value = b ? b.name : '';
+  $('fNotes').value = b ? b.notes : '';
+  $('backdrop').classList.add('show');
+  $('form').classList.add('show');
+  setTimeout(() => $('fName').focus(), 50);
+}
+function closeForm() {
+  $('form').classList.remove('show');
+  if (!$('sheet').classList.contains('show')) $('backdrop').classList.remove('show');
+}
+$('fCancel').onclick = closeForm;
+$('fSave').onclick = () => {
+  const name = $('fName').value.trim();
+  if (!name) { $('fName').focus(); return; }
+  const notes = $('fNotes').value.trim();
+  if (editingId) {
+    const b = data.buildings.find(x => x.id === editingId);
+    b.name = name; b.notes = notes;
+    save(); closeForm(); render(); renderSheet();
+  } else {
+    const id = 'b' + Date.now();
+    data.buildings.push({ id, name, notes, lat: pendingPos.lat, lng: pendingPos.lng });
+    save(); closeForm(); render();
+  }
+};
+
+// ---------------------------------------------------------------- building sheet
+let curId = null, curYear = nowY();
+
+function openSheet(id) {
+  curId = id;
+  curYear = nowY();
+  renderSheet();
+  $('backdrop').classList.add('show');
+  $('sheet').classList.add('show');
+}
+function closeSheet() {
+  $('sheet').classList.remove('show');
+  $('backdrop').classList.remove('show');
+  curId = null;
+}
+function renderSheet() {
+  const b = data.buildings.find(x => x.id === curId);
+  if (!b) return;
+  const ny = nowY(), nm = nowM();
+  let grid = '';
+  for (let m = 1; m <= 12; m++) {
+    const done = isDone(b.id, curYear, m);
+    const cur = curYear === ny && m === nm;
+    grid += `<button class="month ${done ? 'done' : ''} ${cur ? 'cur' : ''}" data-m="${m}">${MONTHS[m - 1]}<br>${done ? '✔' : '○'}</button>`;
+  }
+  $('sheet').innerHTML = `
+    <h2>${esc(b.name)}</h2>
+    ${b.notes ? `<p class="notes">${esc(b.notes)}</p>` : ''}
+    <div class="row yearrow">
+      <button id="yPrev">›</button><span>${curYear}</span><button id="yNext">‹</button>
+    </div>
+    <div class="grid">${grid}</div>
+    <div class="actions">
+      <a class="btn primary" target="_blank" rel="noopener"
+         href="https://www.google.com/maps/dir/?api=1&destination=${b.lat},${b.lng}">الاتجاهات</a>
+      <button class="btn ghost" id="editB">تعديل</button>
+      <button class="btn danger" id="delB">حذف</button>
+    </div>`;
+  $('yPrev').onclick = () => { curYear--; renderSheet(); };
+  $('yNext').onclick = () => { curYear++; renderSheet(); };
+  $('sheet').querySelectorAll('.month').forEach(el => {
+    el.onclick = () => toggleMonth(b.id, curYear, +el.dataset.m);
+  });
+  $('editB').onclick = () => openForm(b.id);
+  $('delB').onclick = () => {
+    if (!confirm('تحذف "' + b.name + '" وكل سجل زياراتها؟')) return;
+    data.buildings = data.buildings.filter(x => x.id !== b.id);
+    delete data.visits[b.id];
+    save(); closeSheet(); render();
+  };
+}
+function toggleMonth(id, y, m) {
+  const key = ym(y, m);
+  const arr = data.visits[id] || [];
+  data.visits[id] = arr.includes(key) ? arr.filter(k => k !== key) : [...arr, key];
+  save(); renderSheet(); render();
+}
+$('backdrop').onclick = () => { if ($('form').classList.contains('show')) closeForm(); else closeSheet(); };
+
+// ---------------------------------------------------------------- list
+function openList() { $('listPanel').classList.add('show'); $('search').value = ''; renderList(); }
+function renderList() {
+  const q = $('search').value.trim();
+  const y = nowY(), m = nowM();
+  const items = data.buildings.filter(b => b.name.includes(q))
+    .sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+  if (!items.length) { $('items').innerHTML = '<div class="empty">مفيش نتائج</div>'; return; }
+  $('items').innerHTML = items.map(b => {
+    const done = isDone(b.id, y, m);
+    return `<div class="item" data-id="${b.id}">
+      <span class="dot" style="background:${done ? '#2e7d32' : '#d32f2f'}"></span>
+      <div><b>${esc(b.name)}</b><small>${done ? 'تمت صيانة الشهر ده' : 'لسه'}</small></div></div>`;
+  }).join('');
+  $('items').querySelectorAll('.item').forEach(el => {
+    el.onclick = () => {
+      const b = data.buildings.find(x => x.id === el.dataset.id);
+      $('listPanel').classList.remove('show');
+      map.setView([b.lat, b.lng], 17);
+      openSheet(b.id);
+    };
+  });
+}
+$('listBtn').onclick = openList;
+$('listClose').onclick = () => $('listPanel').classList.remove('show');
+$('search').oninput = renderList;
+
+// ---------------------------------------------------------------- backup
+$('exportBtn').onclick = () => {
+  const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'elevators-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+$('importBtn').onclick = () => $('importFile').click();
+$('importFile').onchange = e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const d = JSON.parse(r.result);
+      if (!Array.isArray(d.buildings) || typeof d.visits !== 'object') throw 0;
+      if (!confirm('هيتم استبدال البيانات الحالية بالنسخة الاحتياطية. متأكد؟')) return;
+      data = d; save(); render(); renderList();
+    } catch (err) { alert('الملف ده مش نسخة احتياطية صالحة'); }
+  };
+  r.readAsText(f);
+  e.target.value = '';
+};
+
+// ---------------------------------------------------------------- start
+render();
+locate(true);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+</script>
+</body>
+</html>
