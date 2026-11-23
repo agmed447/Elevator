@@ -1,4 +1,4 @@
-const CACHE = 'elev-v1';
+const CACHE = 'elev-v3';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -14,9 +14,12 @@ self.addEventListener('activate', e => {
   );
 });
 
-// الملفات والخريطة: نرجّع النسخة المحفوظة فوراً ونحدّثها في الخلفية
+// نخزّن ملفات التطبيق ومكتبة الخريطة بس. صور الخريطة (عادية/قمر صناعي) بتتحمّل من النت.
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  const url = new URL(e.request.url);
+  if (url.origin !== location.origin && url.hostname !== 'unpkg.com') return;
+
   e.respondWith(
     caches.match(e.request).then(hit => {
       const net = fetch(e.request)

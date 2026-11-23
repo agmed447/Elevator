@@ -11,13 +11,13 @@
 <title>صيانة المصاعد</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-  :root { --main:#3949ab; --green:#2e7d32; --red:#d32f2f; --bg:#fff; --line:#dcdfe6; }
+  :root { --main:#3949ab; --green:#2e7d32; --red:#d32f2f; --line:#dcdfe6; }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html, body { margin:0; height:100%; font-family:system-ui, "Segoe UI", Tahoma, sans-serif; background:#eee; }
   body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
   button { font:inherit; cursor:pointer; }
 
-  #bar { background:var(--main); color:#fff; padding:10px 14px; display:flex; align-items:center; gap:10px;
+  #bar { background:var(--main); color:#fff; padding:10px 14px; display:flex; align-items:center; gap:8px;
          padding-top:calc(10px + env(safe-area-inset-top)); z-index:1500; }
   #bar .title { flex:1; font-weight:600; font-size:16px; line-height:1.3; }
   #bar .title small { display:block; font-weight:400; opacity:.85; font-size:12px; }
@@ -28,16 +28,21 @@
   .fab { position:absolute; z-index:1200; width:54px; height:54px; border-radius:50%; border:0; color:#fff; font-size:24px;
          box-shadow:0 3px 10px rgba(0,0,0,.35); }
   #locBtn { background:#fff; color:#333; left:14px; bottom:98px; }
-  #addBtn { background:var(--main); right:14px; bottom:98px; width:auto; padding:0 20px; border-radius:28px; font-size:16px; }
-  #hint { position:absolute; z-index:1100; left:0; right:0; bottom:0; text-align:center; font-size:12px; color:#555;
-          background:rgba(255,255,255,.85); padding:5px; padding-bottom:calc(5px + env(safe-area-inset-bottom)); }
+  #satBtn { background:#fff; color:#333; left:14px; bottom:160px; font-size:22px; }
+  #hint { position:absolute; z-index:1100; left:0; right:0; bottom:0; font-size:12px; color:#333; direction:rtl;
+          background:rgba(255,255,255,.9); padding:6px 8px calc(6px + env(safe-area-inset-bottom));
+          display:flex; flex-wrap:wrap; justify-content:center; gap:4px 14px; }
+  #hint .lg { display:inline-flex; align-items:center; gap:5px; }
+  #hint i { width:11px; height:11px; border-radius:50%; display:inline-block; }
 
-  #crosshair { position:absolute; z-index:1300; left:50%; top:50%; width:44px; height:44px; margin:-44px 0 0 -22px; pointer-events:none; }
-  #addbar { position:absolute; z-index:1400; left:0; right:0; bottom:0; background:#fff; padding:12px 14px calc(12px + env(safe-area-inset-bottom));
-            box-shadow:0 -3px 12px rgba(0,0,0,.25); display:flex; gap:10px; align-items:center; }
-  #addbar span { flex:1; font-size:14px; }
+  .pinwrap { width:90px; display:flex; flex-direction:column; align-items:center; direction:rtl; }
+  .pinlabel { margin-top:-1px; max-width:90px; font-size:12px; font-weight:700; color:#fff; background:rgba(0,0,0,.65);
+              padding:1px 7px; border-radius:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .nolabels .pinlabel { display:none; }
+
 
   .btn { border:0; border-radius:10px; padding:11px 18px; font-size:15px; }
+  .btn.block { display:block; width:100%; margin-bottom:8px; text-align:center; }
   .primary { background:var(--main); color:#fff; }
   .ghost { background:#eceff1; color:#333; }
   .danger { background:#ffebee; color:var(--red); }
@@ -49,6 +54,7 @@
            max-height:88dvh; overflow:auto; }
   .sheet.show { transform:none; }
   .sheet h2 { margin:0 0 4px; font-size:19px; }
+  .tag { background:#fff8e1; color:#e65100; border:1px solid #ffcc80; border-radius:8px; padding:1px 8px; font-size:12px; vertical-align:middle; }
   .sheet .notes { color:#666; margin:0 0 8px; font-size:14px; }
   .row { display:flex; gap:8px; align-items:center; }
   .yearrow { justify-content:center; margin:8px 0; font-size:18px; font-weight:600; }
@@ -61,23 +67,45 @@
   .actions .btn { flex:1; text-align:center; text-decoration:none; }
 
   .modal { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:2100; width:min(92vw,380px);
-           background:#fff; border-radius:16px; padding:18px; display:none; }
+           max-height:92dvh; overflow:auto; background:#fff; border-radius:16px; padding:18px; display:none; }
   .modal.show { display:block; }
   .modal h3 { margin:0 0 10px; }
-  .modal input { width:100%; padding:12px; margin-bottom:10px; border:1px solid var(--line); border-radius:10px; font:inherit; }
+  .modal p { margin:0 0 10px; font-size:13px; color:#555; line-height:1.6; }
+  .modal input[type=text] { width:100%; padding:12px; margin-bottom:10px; border:1px solid var(--line); border-radius:10px; font:inherit; }
+  .chk { display:flex; align-items:center; gap:10px; padding:10px 12px; margin-bottom:12px; background:#fff8e1; border-radius:10px; font-size:15px; }
+  .chk input { width:20px; height:20px; }
+  #linksModal { z-index:2300; }
+  #linksModal textarea { width:100%; height:170px; padding:10px; border:1px solid var(--line); border-radius:10px; font:inherit; font-size:13px; resize:none; margin-bottom:8px; }
+  #linksMsg { white-space:pre-line; font-size:13px; margin-bottom:8px; }
 
   #listPanel { position:fixed; inset:0; z-index:2200; background:#fff; display:none; flex-direction:column; }
   #listPanel.show { display:flex; }
   #listHead { background:var(--main); color:#fff; padding:10px 14px; padding-top:calc(10px + env(safe-area-inset-top)); display:flex; gap:10px; align-items:center; }
   #listHead b { flex:1; }
+  #stats { margin:12px 12px 0; }
+  #stats .cap { font-size:13px; color:#555; margin-bottom:6px; }
+  #stats table { width:100%; border-collapse:collapse; text-align:center; font-size:16px; }
+  #stats th, #stats td { padding:9px 6px; border:1px solid var(--line); }
+  #stats th { background:#eceff1; font-size:13px; font-weight:600; }
+  #stats td.k { text-align:right; font-weight:600; font-size:15px; }
+  #stats .dotk { display:inline-block; width:11px; height:11px; border-radius:50%; margin-left:6px; vertical-align:middle; }
+  #stats tr.all td { background:#f6f7f9; font-weight:700; }
   #search { margin:12px; padding:12px; border:1px solid var(--line); border-radius:10px; font:inherit; }
-  #items { flex:1; overflow:auto; }
+  #items { flex:1; overflow:auto; padding-bottom:env(safe-area-inset-bottom); }
   .item { display:flex; align-items:center; gap:12px; padding:14px 16px; border-bottom:1px solid #eee; }
   .dot { width:14px; height:14px; border-radius:50%; flex:none; }
   .item small { color:#777; display:block; }
-  #listFoot { padding:10px 12px calc(10px + env(safe-area-inset-bottom)); display:flex; gap:8px; border-top:1px solid #eee; }
-  #listFoot .btn { flex:1; }
   .empty { text-align:center; color:#888; padding:30px; }
+  #qWrap { position:absolute; z-index:1250; top:30px; left:10px; right:10px; direction:rtl; }
+  #qBox { position:relative; }
+  #q { width:100%; padding:12px 42px 12px 14px; border:0; border-radius:14px; font:inherit; font-size:16px;
+       box-shadow:0 2px 10px rgba(0,0,0,.35); background:#fff; }
+  #qClear { position:absolute; right:6px; top:50%; transform:translateY(-50%); border:0; background:transparent;
+            font-size:18px; color:#666; width:34px; height:34px; display:none; }
+  #qRes { margin-top:6px; background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.35);
+          max-height:42vh; overflow:auto; display:none; }
+  #qRes .item { padding:12px 14px; }
+  #qRes .item:last-child { border-bottom:0; }
   .leaflet-control-attribution { font-size:9px; }
 </style>
 </head>
@@ -85,18 +113,25 @@
 
 <div id="bar">
   <div class="title"><span id="monthLabel"></span><small id="remainLabel"></small></div>
+  <button class="iconbtn" id="dataBtn" aria-label="البيانات">💾</button>
   <button class="iconbtn" id="listBtn" aria-label="القائمة">☰</button>
 </div>
 
 <div id="map">
+  <div id="qWrap">
+    <div id="qBox">
+      <input id="q" type="search" placeholder="🔍 ابحث عن عميل" autocomplete="off">
+      <button id="qClear" aria-label="مسح">✕</button>
+    </div>
+    <div id="qRes"></div>
+  </div>
+  <button class="fab" id="satBtn" aria-label="نوع الخريطة">🛰</button>
   <button class="fab" id="locBtn" aria-label="موقعي">◎</button>
-  <button class="fab" id="addBtn">＋ عمارة</button>
-  <div id="hint">اضغط على العلامة لفتح جدول الصيانة</div>
-  <svg id="crosshair" viewBox="0 0 24 24" hidden><path d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z" fill="#3949ab" stroke="#fff" stroke-width="1"/></svg>
-  <div id="addbar" hidden>
-    <span>حرّك الخريطة لحد ما العلامة تبقى على العمارة</span>
-    <button class="btn ghost" id="addCancel">إلغاء</button>
-    <button class="btn primary" id="addOk">تأكيد</button>
+  <div id="hint">
+    <span class="lg"><i style="background:#d32f2f"></i>عادي لسه</span>
+    <span class="lg"><i style="background:#43a047"></i>عادي تم</span>
+    <span class="lg"><i style="background:#f9a825"></i>ضمان لسه</span>
+    <span class="lg"><i style="background:#1b5e20"></i>ضمان تم</span>
   </div>
 </div>
 
@@ -106,66 +141,207 @@
 
 <div class="modal" id="form">
   <h3 id="formTitle">إضافة عمارة</h3>
-  <input id="fName" placeholder="اسم صاحب المصعد">
-  <input id="fNotes" placeholder="ملاحظات (اختياري)">
+  <input type="text" id="fName" placeholder="اسم صاحب المصعد">
+  <input type="text" id="fNotes" placeholder="ملاحظات (اختياري)">
+  <label class="chk"><input type="checkbox" id="fWarranty"> مصعد ضمان</label>
   <div class="row">
     <button class="btn ghost" id="fCancel" style="flex:1">إلغاء</button>
     <button class="btn primary" id="fSave" style="flex:1">حفظ</button>
   </div>
 </div>
 
+<div class="modal" id="dataModal">
+  <h3>البيانات</h3>
+  <p>الملف بيحتوي كل العمارات (الاسم والموقع ونوع المصعد والملاحظات) وسجل الزيارات كله. احفظه في مكان آمن زي Google Drive، وارفعه تاني وقت ما تحتاج.</p>
+  <button class="btn primary block" id="exportBtn">⬇ تصدير كل البيانات (ملف)</button>
+  <button class="btn ghost block" id="importBtn">⬆ استيراد البيانات من ملف</button>
+  <button class="btn ghost block" id="importLinksBtn">📍 استيراد عمارات من روابط جوجل ماب</button>
+  <button class="btn ghost block" id="dataClose">إغلاق</button>
+  <input type="file" id="importFile" accept=".json,application/json" hidden>
+</div>
+
+<div class="modal" id="linksModal">
+  <h3>استيراد من روابط جوجل ماب</h3>
+  <p>الصق كل عمارة في سطر: الاسم ثم الرابط. لازم الرابط يكون الطويل (بيبدأ بـ google.com/maps). الروابط المختصرة (maps.app.goo.gl) مش هتتقرأ.</p>
+  <textarea id="linksText" dir="auto" placeholder="مثال:&#10;عمارة أحمد محمد https://www.google.com/maps/place/@30.0444,31.2357,17z"></textarea>
+  <label class="chk"><input type="checkbox" id="linksWarranty"> العمارات دي مصاعد ضمان</label>
+  <div id="linksMsg"></div>
+  <div class="row">
+    <button class="btn ghost" id="linksCancel" style="flex:1">إغلاق</button>
+    <button class="btn primary" id="linksGo" style="flex:1">استيراد</button>
+  </div>
+</div>
+
 <div id="listPanel">
   <div id="listHead"><button class="iconbtn" id="listClose">✕</button><b>العملاء</b></div>
+  <div id="stats"></div>
   <input id="search" placeholder="بحث بالاسم">
   <div id="items"></div>
-  <div id="listFoot">
-    <button class="btn ghost" id="exportBtn">نسخة احتياطية</button>
-    <button class="btn ghost" id="importBtn">استرجاع</button>
-    <input type="file" id="importFile" accept="application/json" hidden>
-  </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+// ================================================================ helpers (بدون واجهة)
 const MONTHS = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ym = (y, m) => y + '-' + String(m).padStart(2, '0');
+
+// توحيد الحروف العربية عشان البحث يلقط (أحمد = احمد، فاطمة = فاطمه، ...)
+const norm = s => String(s).toLowerCase()
+  .replace(/[\u064B-\u0652\u0640]/g, '')
+  .replace(/[أإآٱ]/g, 'ا')
+  .replace(/ى/g, 'ي')
+  .replace(/ة/g, 'ه')
+  .replace(/\s+/g, ' ')
+  .trim();
+const matches = (b, q) => { const nq = norm(q); return !nq || norm(b.name).includes(nq) || norm(b.notes || '').includes(nq); };
+
+// الألوان: عادي (أحمر ← أخضر) / ضمان (أصفر ← أخضر غامق)
+function colorOf(b, done) {
+  if (b.type === 'warranty') return done ? '#1b5e20' : '#f9a825';
+  return done ? '#43a047' : '#d32f2f';
+}
+
+// أول اسم من العميل (بنتخطى كلمة عمارة/برج/مبنى)
+function firstName(name) {
+  const skip = ['عمارة', 'عماره', 'برج', 'مبنى', 'عقار'];
+  const w = String(name).trim().split(/\s+/);
+  let i = 0;
+  while (i < w.length - 1 && skip.includes(w[i])) i++;
+  return w[i] || String(name);
+}
+
+function normalizeData(d) {
+  if (!d || !Array.isArray(d.buildings) || typeof d.visits !== 'object' || d.visits === null) throw new Error('bad');
+  const buildings = d.buildings
+    .filter(b => b && typeof b.name === 'string' && isFinite(b.lat) && isFinite(b.lng))
+    .map((b, i) => ({
+      id: String(b.id || ('b' + Date.now() + '_' + i)),
+      name: b.name,
+      notes: typeof b.notes === 'string' ? b.notes : '',
+      lat: +b.lat,
+      lng: +b.lng,
+      type: b.type === 'warranty' ? 'warranty' : 'regular'
+    }));
+  const visits = {};
+  buildings.forEach(b => {
+    const v = d.visits[b.id];
+    if (Array.isArray(v)) visits[b.id] = v.filter(k => /^\d{4}-\d{2}$/.test(k));
+  });
+  return { buildings, visits };
+}
+
+const URL_RE = /https?:\/\/[^\s]+/i;
+const SEP_RE = /^[\s\-–—:|,،؛;•*]+|[\s\-–—:|,،؛;•*]+$/g;
+const validLL = (lat, lng) => Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+
+function coordsFromUrl(url) {
+  let t = url;
+  try { t = decodeURIComponent(url); } catch (e) {}
+  const n = '(-?\\d{1,3}\\.\\d+)';
+  const pats = [
+    new RegExp('!3d' + n + '!4d' + n),
+    new RegExp('@' + n + ',' + n),
+    new RegExp('[?&](?:q|query|ll|destination|center)=' + n + ',\\s*' + n),
+    new RegExp('/place/' + n + ',' + n)
+  ];
+  for (const re of pats) {
+    const m = t.match(re);
+    if (m && validLL(+m[1], +m[2])) return { lat: +m[1], lng: +m[2] };
+  }
+  return null;
+}
+
+function parseImport(text) {
+  const ok = [], bad = [];
+  let pending = '';
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) continue;
+    const um = line.match(URL_RE);
+    if (um) {
+      const url = um[0];
+      let name = line.replace(url, '').replace(SEP_RE, '');
+      if (!name) name = pending;
+      pending = '';
+      if (!name) {
+        const pm = url.match(/\/place\/([^\/@]+)/);
+        if (pm) { try { name = decodeURIComponent(pm[1].replace(/\+/g, ' ')); } catch (e) {} }
+      }
+      const c = coordsFromUrl(url);
+      if (c) ok.push({ name: name || 'عمارة بدون اسم', lat: c.lat, lng: c.lng });
+      else bad.push((name ? name + ' ' : '') + url);
+    } else {
+      const cm = line.match(/(-?\d{1,3}\.\d+)\s*[,،]\s*(-?\d{1,3}\.\d+)/);
+      if (cm && validLL(+cm[1], +cm[2])) {
+        const name = line.replace(cm[0], '').replace(SEP_RE, '') || pending;
+        pending = '';
+        ok.push({ name: name || 'عمارة بدون اسم', lat: +cm[1], lng: +cm[2] });
+      } else {
+        pending = line.replace(SEP_RE, '');
+      }
+    }
+  }
+  return { ok, bad };
+}
+// ================================================================ end helpers
+
 const KEY = 'elev_data_v1';
 const $ = id => document.getElementById(id);
-const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-// ---------------------------------------------------------------- data
 let data = loadData();
 function loadData() {
-  try {
-    const d = JSON.parse(localStorage.getItem(KEY));
-    if (d && Array.isArray(d.buildings) && d.visits) return d;
-  } catch (e) {}
-  return { buildings: [], visits: {} };
+  try { return normalizeData(JSON.parse(localStorage.getItem(KEY))); }
+  catch (e) { return { buildings: [], visits: {} }; }
 }
 function save() { localStorage.setItem(KEY, JSON.stringify(data)); }
-const ym = (y, m) => y + '-' + String(m).padStart(2, '0');
 const isDone = (id, y, m) => (data.visits[id] || []).includes(ym(y, m));
 const nowY = () => new Date().getFullYear();
 const nowM = () => new Date().getMonth() + 1;
 
 // ---------------------------------------------------------------- map
-const map = L.map('map', { zoomControl: false, attributionControl: true }).setView([30.0444, 31.2357], 12);
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19,
-  attribution: '© OpenStreetMap'
-}).addTo(map);
+const map = L.map('map', { zoomControl: false }).setView([30.0444, 31.2357], 12);
 map.attributionControl.setPosition('topleft');
+
+const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19, attribution: '© OpenStreetMap'
+});
+const sat = L.layerGroup([
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19, maxNativeZoom: 18, attribution: 'Esri, Maxar, Earthstar Geographics'
+  }),
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19, maxNativeZoom: 18
+  })
+]);
+let satOn = localStorage.getItem('elev_sat') === '1';
+function applyBase() {
+  if (satOn) { map.removeLayer(osm); sat.addTo(map); }
+  else { map.removeLayer(sat); osm.addTo(map); }
+  $('satBtn').textContent = satOn ? '🗺' : '🛰';
+  localStorage.setItem('elev_sat', satOn ? '1' : '0');
+}
+$('satBtn').onclick = () => { satOn = !satOn; applyBase(); };
+applyBase();
+
+// الاسم بيظهر تحت العلامة لما تقرّب شوية
+function updLabels() { $('map').classList.toggle('nolabels', map.getZoom() < 13); }
+map.on('zoomend', updLabels);
+updLabels();
 
 const layer = L.layerGroup().addTo(map);
 let meMarker = null;
 
-function pinIcon(done) {
-  const c = done ? '#2e7d32' : '#d32f2f';
+function pinIcon(color, label) {
   return L.divIcon({
     className: '',
-    iconSize: [42, 42],
-    iconAnchor: [21, 42],
-    html: `<svg viewBox="0 0 24 24" width="42" height="42" style="filter:drop-shadow(0 2px 2px rgba(0,0,0,.45))">
-      <path d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z" fill="${c}" stroke="#fff" stroke-width="1"/></svg>`
+    iconSize: [90, 64],
+    iconAnchor: [45, 38],
+    html: `<div class="pinwrap">
+      <svg viewBox="0 0 24 24" width="42" height="42" style="filter:drop-shadow(0 2px 2px rgba(0,0,0,.5))">
+        <path d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z" fill="${color}" stroke="#fff" stroke-width="1"/>
+      </svg>
+      <div class="pinlabel">${esc(label)}</div></div>`
   });
 }
 
@@ -176,9 +352,10 @@ function render() {
   data.buildings.forEach(b => {
     const done = isDone(b.id, y, m);
     if (!done) remaining++;
-    L.marker([b.lat, b.lng], { icon: pinIcon(done) })
-      .on('click', () => openSheet(b.id))
-      .addTo(layer);
+    L.marker([b.lat, b.lng], {
+      icon: pinIcon(colorOf(b, done), firstName(b.name)),
+      zIndexOffset: done ? 0 : 500
+    }).on('click', () => openSheet(b.id)).addTo(layer);
   });
   $('monthLabel').textContent = MONTHS[m - 1] + ' ' + y;
   $('remainLabel').textContent = data.buildings.length
@@ -198,30 +375,13 @@ function locate(silent) {
 }
 $('locBtn').onclick = () => locate(false);
 
+function fitAll() {
+  if (data.buildings.length) map.fitBounds(data.buildings.map(b => [b.lat, b.lng]), { padding: [40, 40], maxZoom: 16 });
+}
+
 // ---------------------------------------------------------------- add building
 let pendingPos = null, editingId = null;
 
-function startAdd() {
-  $('crosshair').hidden = false;
-  $('addbar').hidden = false;
-  $('addBtn').style.display = 'none';
-  $('locBtn').style.display = 'none';
-  $('hint').style.display = 'none';
-}
-function endAdd() {
-  $('crosshair').hidden = true;
-  $('addbar').hidden = true;
-  $('addBtn').style.display = '';
-  $('locBtn').style.display = '';
-  $('hint').style.display = '';
-}
-$('addBtn').onclick = startAdd;
-$('addCancel').onclick = endAdd;
-$('addOk').onclick = () => {
-  pendingPos = map.getCenter();
-  endAdd();
-  openForm(null);
-};
 // الضغط المطوّل على الخريطة برضه بيضيف عمارة
 map.on('contextmenu', e => { pendingPos = e.latlng; openForm(null); });
 
@@ -231,6 +391,7 @@ function openForm(id) {
   $('formTitle').textContent = b ? 'تعديل البيانات' : 'إضافة عمارة';
   $('fName').value = b ? b.name : '';
   $('fNotes').value = b ? b.notes : '';
+  $('fWarranty').checked = b ? b.type === 'warranty' : false;
   $('backdrop').classList.add('show');
   $('form').classList.add('show');
   setTimeout(() => $('fName').focus(), 50);
@@ -244,13 +405,14 @@ $('fSave').onclick = () => {
   const name = $('fName').value.trim();
   if (!name) { $('fName').focus(); return; }
   const notes = $('fNotes').value.trim();
+  const type = $('fWarranty').checked ? 'warranty' : 'regular';
   if (editingId) {
     const b = data.buildings.find(x => x.id === editingId);
-    b.name = name; b.notes = notes;
+    b.name = name; b.notes = notes; b.type = type;
     save(); closeForm(); render(); renderSheet();
   } else {
     const id = 'b' + Date.now();
-    data.buildings.push({ id, name, notes, lat: pendingPos.lat, lng: pendingPos.lng });
+    data.buildings.push({ id, name, notes, type, lat: pendingPos.lat, lng: pendingPos.lng });
     save(); closeForm(); render();
   }
 };
@@ -281,7 +443,7 @@ function renderSheet() {
     grid += `<button class="month ${done ? 'done' : ''} ${cur ? 'cur' : ''}" data-m="${m}">${MONTHS[m - 1]}<br>${done ? '✔' : '○'}</button>`;
   }
   $('sheet').innerHTML = `
-    <h2>${esc(b.name)}</h2>
+    <h2>${esc(b.name)} ${b.type === 'warranty' ? '<span class="tag">ضمان</span>' : ''}</h2>
     ${b.notes ? `<p class="notes">${esc(b.notes)}</p>` : ''}
     <div class="row yearrow">
       <button id="yPrev">›</button><span>${curYear}</span><button id="yNext">‹</button>
@@ -312,21 +474,84 @@ function toggleMonth(id, y, m) {
   data.visits[id] = arr.includes(key) ? arr.filter(k => k !== key) : [...arr, key];
   save(); renderSheet(); render();
 }
-$('backdrop').onclick = () => { if ($('form').classList.contains('show')) closeForm(); else closeSheet(); };
+
+$('backdrop').onclick = () => {
+  if ($('linksModal').classList.contains('show')) closeLinks();
+  else if ($('dataModal').classList.contains('show')) closeData();
+  else if ($('form').classList.contains('show')) closeForm();
+  else closeSheet();
+};
+
+// ---------------------------------------------------------------- search box on the map
+L.DomEvent.disableClickPropagation($('qWrap'));
+L.DomEvent.disableScrollPropagation($('qWrap'));
+
+function renderSearch() {
+  const q = $('q').value;
+  $('qClear').style.display = q ? 'block' : 'none';
+  if (!q.trim()) { $('qRes').style.display = 'none'; return; }
+  const y = nowY(), m = nowM();
+  const found = data.buildings.filter(b => matches(b, q))
+    .sort((a, b) => a.name.localeCompare(b.name, 'ar')).slice(0, 8);
+  $('qRes').style.display = 'block';
+  if (!found.length) { $('qRes').innerHTML = '<div class="empty">مفيش عميل بالاسم ده</div>'; return; }
+  $('qRes').innerHTML = found.map(b => {
+    const done = isDone(b.id, y, m);
+    return `<div class="item" data-id="${b.id}">
+      <span class="dot" style="background:${colorOf(b, done)}"></span>
+      <div><b>${esc(b.name)}</b><small>${b.type === 'warranty' ? 'ضمان · ' : ''}${done ? 'تمت صيانة الشهر ده' : 'لسه'}</small></div></div>`;
+  }).join('');
+  $('qRes').querySelectorAll('.item').forEach(el => {
+    el.onclick = () => {
+      const b = data.buildings.find(x => x.id === el.dataset.id);
+      clearSearch();
+      map.setView([b.lat, b.lng], 17);
+      openSheet(b.id);
+    };
+  });
+}
+function clearSearch() {
+  $('q').value = '';
+  $('q').blur();
+  renderSearch();
+}
+$('q').oninput = renderSearch;
+$('q').onfocus = renderSearch;
+$('qClear').onclick = clearSearch;
+map.on('click', () => { $('qRes').style.display = 'none'; $('q').blur(); });
 
 // ---------------------------------------------------------------- list
 function openList() { $('listPanel').classList.add('show'); $('search').value = ''; renderList(); }
+function renderStats() {
+  const y = nowY(), m = nowM();
+  const s = { regular: { rem: 0, tot: 0 }, warranty: { rem: 0, tot: 0 } };
+  data.buildings.forEach(b => {
+    const t = b.type === 'warranty' ? 'warranty' : 'regular';
+    s[t].tot++;
+    if (!isDone(b.id, y, m)) s[t].rem++;
+  });
+  const remCol = (n, c) => `<td style="color:${n ? c : '#2e7d32'};font-weight:700">${n}</td>`;
+  $('stats').innerHTML = `
+    <div class="cap">حالة شهر ${MONTHS[m - 1]} ${y}</div>
+    <table>
+      <tr><th></th><th>باقي (لسه)</th><th>الإجمالي</th></tr>
+      <tr><td class="k"><span class="dotk" style="background:#d32f2f"></span>عادي</td>${remCol(s.regular.rem, '#d32f2f')}<td>${s.regular.tot}</td></tr>
+      <tr><td class="k"><span class="dotk" style="background:#f9a825"></span>ضمان</td>${remCol(s.warranty.rem, '#e65100')}<td>${s.warranty.tot}</td></tr>
+      <tr class="all"><td class="k">الكل</td><td>${s.regular.rem + s.warranty.rem}</td><td>${s.regular.tot + s.warranty.tot}</td></tr>
+    </table>`;
+}
 function renderList() {
+  renderStats();
   const q = $('search').value.trim();
   const y = nowY(), m = nowM();
-  const items = data.buildings.filter(b => b.name.includes(q))
+  const items = data.buildings.filter(b => matches(b, q))
     .sort((a, b) => a.name.localeCompare(b.name, 'ar'));
   if (!items.length) { $('items').innerHTML = '<div class="empty">مفيش نتائج</div>'; return; }
   $('items').innerHTML = items.map(b => {
     const done = isDone(b.id, y, m);
     return `<div class="item" data-id="${b.id}">
-      <span class="dot" style="background:${done ? '#2e7d32' : '#d32f2f'}"></span>
-      <div><b>${esc(b.name)}</b><small>${done ? 'تمت صيانة الشهر ده' : 'لسه'}</small></div></div>`;
+      <span class="dot" style="background:${colorOf(b, done)}"></span>
+      <div><b>${esc(b.name)}</b><small>${b.type === 'warranty' ? 'ضمان · ' : ''}${done ? 'تمت صيانة الشهر ده' : 'لسه'}</small></div></div>`;
   }).join('');
   $('items').querySelectorAll('.item').forEach(el => {
     el.onclick = () => {
@@ -341,15 +566,27 @@ $('listBtn').onclick = openList;
 $('listClose').onclick = () => $('listPanel').classList.remove('show');
 $('search').oninput = renderList;
 
-// ---------------------------------------------------------------- backup
+// ---------------------------------------------------------------- data: export / import
+function openData() { $('backdrop').classList.add('show'); $('dataModal').classList.add('show'); }
+function closeData() { $('dataModal').classList.remove('show'); $('backdrop').classList.remove('show'); }
+$('dataBtn').onclick = openData;
+$('dataClose').onclick = closeData;
+
 $('exportBtn').onclick = () => {
-  const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+  const payload = {
+    app: 'elevator-maintenance', version: 2, exportedAt: new Date().toISOString(),
+    buildings: data.buildings, visits: data.visits
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 1)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'elevators-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+  a.download = 'elevators-data-' + new Date().toISOString().slice(0, 10) + '.json';
+  document.body.appendChild(a);
   a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
 };
+
 $('importBtn').onclick = () => $('importFile').click();
 $('importFile').onchange = e => {
   const f = e.target.files[0];
@@ -357,14 +594,53 @@ $('importFile').onchange = e => {
   const r = new FileReader();
   r.onload = () => {
     try {
-      const d = JSON.parse(r.result);
-      if (!Array.isArray(d.buildings) || typeof d.visits !== 'object') throw 0;
-      if (!confirm('هيتم استبدال البيانات الحالية بالنسخة الاحتياطية. متأكد؟')) return;
-      data = d; save(); render(); renderList();
-    } catch (err) { alert('الملف ده مش نسخة احتياطية صالحة'); }
+      const d = normalizeData(JSON.parse(r.result));
+      if (!confirm('الملف فيه ' + d.buildings.length + ' عمارة. هيتم استبدال كل البيانات الحالية بيها. متأكد؟')) return;
+      data = d; save(); render(); renderList(); closeData(); fitAll();
+      alert('تم استيراد ' + d.buildings.length + ' عمارة');
+    } catch (err) { alert('الملف ده مش ملف بيانات صالح'); }
   };
   r.readAsText(f);
   e.target.value = '';
+};
+
+// ---------------------------------------------------------------- import from Google Maps links
+function openLinks() {
+  $('linksText').value = '';
+  $('linksMsg').textContent = '';
+  $('linksWarranty').checked = false;
+  $('backdrop').classList.add('show');
+  $('linksModal').classList.add('show');
+}
+function closeLinks() { $('linksModal').classList.remove('show'); $('backdrop').classList.remove('show'); }
+$('importLinksBtn').onclick = () => { $('dataModal').classList.remove('show'); openLinks(); };
+$('linksCancel').onclick = closeLinks;
+$('linksGo').onclick = () => {
+  const txt = $('linksText').value.trim();
+  if (!txt) { $('linksMsg').style.color = '#d32f2f'; $('linksMsg').textContent = 'الصق الروابط الأول'; return; }
+  const type = $('linksWarranty').checked ? 'warranty' : 'regular';
+  const { ok, bad } = parseImport(txt);
+  let added = 0, dup = 0;
+  ok.forEach(o => {
+    const exists = data.buildings.some(b => b.name === o.name &&
+      Math.abs(b.lat - o.lat) < 0.0001 && Math.abs(b.lng - o.lng) < 0.0001);
+    if (exists) { dup++; return; }
+    data.buildings.push({
+      id: 'b' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      name: o.name, notes: '', type, lat: o.lat, lng: o.lng
+    });
+    added++;
+  });
+  if (added) { save(); render(); renderList(); fitAll(); }
+  $('linksText').value = bad.join('\n');
+  let msg = 'تمت إضافة ' + added + ' عمارة';
+  if (dup) msg += ' (' + dup + ' متكررة اتخطيتها)';
+  $('linksMsg').style.color = '#2e7d32';
+  if (bad.length) {
+    msg += '\nمقدرتش أقرأ ' + bad.length + ' رابط (غالباً مختصرين). سيبتهم في الخانة.';
+    $('linksMsg').style.color = '#e65100';
+  }
+  $('linksMsg').textContent = msg;
 };
 
 // ---------------------------------------------------------------- start
