@@ -3,130 +3,191 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#3949ab">
+<meta name="theme-color" content="#283593">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>صيانة المصاعد</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-  :root { --main:#3949ab; --green:#2e7d32; --red:#d32f2f; --line:#dcdfe6; }
+  :root { --main:#3949ab; --main2:#283593; --green:#2e7d32; --red:#d32f2f; --line:#e3e6ee; --ink:#1c2233; --mut:#667085; }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  html, body { margin:0; height:100%; font-family:system-ui, "Segoe UI", Tahoma, sans-serif; background:#eee; }
+  [hidden] { display:none !important; }
+  html, body { margin:0; height:100%; font-family:"Cairo","Segoe UI",Tahoma,system-ui,sans-serif; background:#eee; color:var(--ink); }
   body { display:flex; flex-direction:column; height:100dvh; overflow:hidden; }
-  button { font:inherit; cursor:pointer; }
+  button, input, textarea { font-family:inherit; }
+  button { font-size:inherit; cursor:pointer; }
+  .ic { width:22px; height:22px; flex:none; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
 
-  #bar { background:var(--main); color:#fff; padding:10px 14px; display:flex; align-items:center; gap:8px;
-         padding-top:calc(10px + env(safe-area-inset-top)); z-index:1500; }
-  #bar .title { flex:1; font-weight:600; font-size:16px; line-height:1.3; }
-  #bar .title small { display:block; font-weight:400; opacity:.85; font-size:12px; }
-  .iconbtn { background:rgba(255,255,255,.18); color:#fff; border:0; border-radius:10px; width:42px; height:42px; font-size:20px; }
+  /* ---------- الشريط العلوي ---------- */
+  #bar { background:linear-gradient(135deg,var(--main2),var(--main)); color:#fff; padding:10px 14px 12px; display:flex; align-items:center; gap:8px;
+         padding-top:calc(10px + env(safe-area-inset-top)); z-index:1500; box-shadow:0 2px 8px rgba(0,0,0,.3); }
+  #bar .title { flex:1; min-width:0; }
+  #bar .app { font-size:17px; font-weight:700; line-height:1.25; }
+  #bar .sub { font-size:12px; opacity:.92; margin-top:1px; }
+  .prog { height:5px; background:rgba(255,255,255,.25); border-radius:5px; margin-top:7px; overflow:hidden; }
+  .prog i { display:block; height:100%; width:0; background:#69f0ae; border-radius:5px; transition:width .4s; }
+  .iconbtn { background:rgba(255,255,255,.16); color:#fff; border:0; border-radius:12px; width:42px; height:42px;
+             display:flex; align-items:center; justify-content:center; }
+  .iconbtn:active { background:rgba(255,255,255,.3); }
 
+  /* ---------- الخريطة ---------- */
   #map { flex:1; direction:ltr; position:relative; z-index:1; }
+  .fab { position:absolute; z-index:1200; width:48px; height:48px; border-radius:50%; border:0; background:#fff; color:#333;
+         display:flex; align-items:center; justify-content:center; box-shadow:0 2px 10px rgba(0,0,0,.35); left:12px; }
+  #locBtn { bottom:calc(74px + env(safe-area-inset-bottom)); }
+  #satBtn { bottom:calc(130px + env(safe-area-inset-bottom)); }
+  #satBtn.on { background:var(--main); color:#fff; }
 
-  .fab { position:absolute; z-index:1200; width:54px; height:54px; border-radius:50%; border:0; color:#fff; font-size:24px;
-         box-shadow:0 3px 10px rgba(0,0,0,.35); }
-  #locBtn { background:#fff; color:#333; left:14px; bottom:98px; }
-  #satBtn { background:#fff; color:#333; left:14px; bottom:160px; font-size:22px; }
-  #hint { position:absolute; z-index:1100; left:0; right:0; bottom:0; font-size:12px; color:#333; direction:rtl;
-          background:rgba(255,255,255,.9); padding:6px 8px calc(6px + env(safe-area-inset-bottom));
-          display:flex; flex-wrap:wrap; justify-content:center; gap:4px 14px; }
+  #hint { position:absolute; z-index:1100; left:10px; right:10px; bottom:calc(10px + env(safe-area-inset-bottom)); direction:rtl;
+          background:rgba(255,255,255,.96); border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.25); padding:9px 10px;
+          font-size:11.5px; color:#333; display:flex; flex-wrap:wrap; justify-content:center; gap:4px 12px; }
   #hint .lg { display:inline-flex; align-items:center; gap:5px; }
   #hint i { width:11px; height:11px; border-radius:50%; display:inline-block; }
 
-  .pinwrap { width:90px; display:flex; flex-direction:column; align-items:center; direction:rtl; }
-  .pinlabel { margin-top:-1px; max-width:90px; font-size:12px; font-weight:700; color:#fff; background:rgba(0,0,0,.65);
-              padding:1px 7px; border-radius:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #emptyCard { position:absolute; z-index:1150; left:16px; right:16px; top:120px; direction:rtl; text-align:center; pointer-events:none;
+               background:#fff; border-radius:16px; padding:18px 16px; box-shadow:0 4px 16px rgba(0,0,0,.3); }
+  #emptyCard b { display:block; font-size:16px; margin-bottom:6px; }
+  #emptyCard span { font-size:13px; color:var(--mut); line-height:1.7; }
+
+  /* علامات العمارات */
+  .pinwrap { width:124px; display:flex; flex-direction:column; align-items:center; direction:rtl; }
+  .pinlabel { margin-top:-2px; max-width:124px; font-size:12px; font-weight:700; line-height:1.3; color:var(--ink); background:#fff;
+              border:2px solid var(--c); padding:1px 7px; border-radius:9px; text-align:center; box-shadow:0 1px 4px rgba(0,0,0,.35);
+              display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
   .nolabels .pinlabel { display:none; }
 
-
-  .btn { border:0; border-radius:10px; padding:11px 18px; font-size:15px; }
-  .btn.block { display:block; width:100%; margin-bottom:8px; text-align:center; }
-  .primary { background:var(--main); color:#fff; }
-  .ghost { background:#eceff1; color:#333; }
-  .danger { background:#ffebee; color:var(--red); }
-
-  .backdrop { position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:2000; display:none; }
-  .backdrop.show { display:block; }
-  .sheet { position:fixed; left:0; right:0; bottom:0; z-index:2100; background:#fff; border-radius:18px 18px 0 0;
-           padding:16px 16px calc(20px + env(safe-area-inset-bottom)); transform:translateY(105%); transition:transform .22s;
-           max-height:88dvh; overflow:auto; }
-  .sheet.show { transform:none; }
-  .sheet h2 { margin:0 0 4px; font-size:19px; }
-  .tag { background:#fff8e1; color:#e65100; border:1px solid #ffcc80; border-radius:8px; padding:1px 8px; font-size:12px; vertical-align:middle; }
-  .sheet .notes { color:#666; margin:0 0 8px; font-size:14px; }
-  .row { display:flex; gap:8px; align-items:center; }
-  .yearrow { justify-content:center; margin:8px 0; font-size:18px; font-weight:600; }
-  .yearrow button { background:#eceff1; border:0; border-radius:8px; width:40px; height:40px; font-size:18px; }
-  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
-  .month { border:1px solid var(--line); background:#f6f7f9; border-radius:12px; padding:12px 4px; text-align:center; font-size:15px; }
-  .month.done { background:#e8f5e9; border-color:#81c784; color:var(--green); font-weight:600; }
-  .month.cur { outline:2px solid var(--main); }
-  .actions { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
-  .actions .btn { flex:1; text-align:center; text-decoration:none; }
-
-  .modal { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:2100; width:min(92vw,380px);
-           max-height:92dvh; overflow:auto; background:#fff; border-radius:16px; padding:18px; display:none; }
-  .modal.show { display:block; }
-  .modal h3 { margin:0 0 10px; }
-  .modal p { margin:0 0 10px; font-size:13px; color:#555; line-height:1.6; }
-  .modal input[type=text] { width:100%; padding:12px; margin-bottom:10px; border:1px solid var(--line); border-radius:10px; font:inherit; }
-  .chk { display:flex; align-items:center; gap:10px; padding:10px 12px; margin-bottom:12px; background:#fff8e1; border-radius:10px; font-size:15px; }
-  .chk input { width:20px; height:20px; }
-  #linksModal { z-index:2300; }
-  #linksModal textarea { width:100%; height:170px; padding:10px; border:1px solid var(--line); border-radius:10px; font:inherit; font-size:13px; resize:none; margin-bottom:8px; }
-  #linksMsg { white-space:pre-line; font-size:13px; margin-bottom:8px; }
-
-  #listPanel { position:fixed; inset:0; z-index:2200; background:#fff; display:none; flex-direction:column; }
-  #listPanel.show { display:flex; }
-  #listHead { background:var(--main); color:#fff; padding:10px 14px; padding-top:calc(10px + env(safe-area-inset-top)); display:flex; gap:10px; align-items:center; }
-  #listHead b { flex:1; }
-  #stats { margin:12px 12px 0; }
-  #stats .cap { font-size:13px; color:#555; margin-bottom:6px; }
-  #stats table { width:100%; border-collapse:collapse; text-align:center; font-size:16px; }
-  #stats th, #stats td { padding:9px 6px; border:1px solid var(--line); }
-  #stats th { background:#eceff1; font-size:13px; font-weight:600; }
-  #stats td.k { text-align:right; font-weight:600; font-size:15px; }
-  #stats .dotk { display:inline-block; width:11px; height:11px; border-radius:50%; margin-left:6px; vertical-align:middle; }
-  #stats tr.all td { background:#f6f7f9; font-weight:700; }
-  #search { margin:12px; padding:12px; border:1px solid var(--line); border-radius:10px; font:inherit; }
-  #items { flex:1; overflow:auto; padding-bottom:env(safe-area-inset-bottom); }
-  .item { display:flex; align-items:center; gap:12px; padding:14px 16px; border-bottom:1px solid #eee; }
-  .dot { width:14px; height:14px; border-radius:50%; flex:none; }
-  .item small { color:#777; display:block; }
-  .empty { text-align:center; color:#888; padding:30px; }
+  /* ---------- البحث ---------- */
   #qWrap { position:absolute; z-index:1250; top:30px; left:10px; right:10px; direction:rtl; }
   #qBox { position:relative; }
-  #q { width:100%; padding:12px 42px 12px 14px; border:0; border-radius:14px; font:inherit; font-size:16px;
-       box-shadow:0 2px 10px rgba(0,0,0,.35); background:#fff; }
-  #qClear { position:absolute; right:6px; top:50%; transform:translateY(-50%); border:0; background:transparent;
-            font-size:18px; color:#666; width:34px; height:34px; display:none; }
-  #qRes { margin-top:6px; background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.35);
-          max-height:42vh; overflow:auto; display:none; }
+  #qBox .qi { position:absolute; right:13px; top:50%; transform:translateY(-50%); color:#8a94a6; display:flex; pointer-events:none; }
+  #q { width:100%; padding:12px 44px; border:0; border-radius:14px; font-size:16px; box-shadow:0 2px 10px rgba(0,0,0,.35); background:#fff; color:var(--ink); }
+  #q:focus { outline:2px solid var(--main); }
+  #qClear { position:absolute; left:5px; top:50%; transform:translateY(-50%); border:0; background:transparent; color:#667085;
+            width:36px; height:36px; display:none; align-items:center; justify-content:center; }
+  #qClear .ic { width:18px; height:18px; }
+  #qRes { margin-top:6px; background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.35); max-height:42vh; overflow:auto; display:none; }
   #qRes .item { padding:12px 14px; }
   #qRes .item:last-child { border-bottom:0; }
+
+  /* ---------- أزرار ---------- */
+  .btn { border:0; border-radius:12px; padding:11px 16px; font-size:15px; font-weight:600; display:inline-flex; align-items:center; justify-content:center; gap:8px; text-decoration:none; }
+  .btn .ic { width:18px; height:18px; }
+  .btn.block { display:flex; width:100%; margin-bottom:8px; }
+  .primary { background:var(--main); color:#fff; }
+  .ghost { background:#eef0f6; color:#2b3350; }
+  .danger { background:#fdecea; color:var(--red); }
+  .dangersolid { background:var(--red); color:#fff; }
+
+  /* ---------- النوافذ ---------- */
+  .backdrop { position:fixed; inset:0; background:rgba(16,22,40,.5); z-index:2000; display:none; }
+  .backdrop.show { display:block; }
+  .sheet { position:fixed; left:0; right:0; bottom:0; z-index:2100; background:#fff; border-radius:22px 22px 0 0;
+           padding:10px 16px calc(20px + env(safe-area-inset-bottom)); transform:translateY(105%); transition:transform .24s;
+           max-height:90dvh; overflow:auto; box-shadow:0 -4px 20px rgba(0,0,0,.25); }
+  .sheet.show { transform:none; }
+  .sheet::before { content:""; display:block; width:42px; height:4px; border-radius:4px; background:#d0d5dd; margin:0 auto 12px; }
+  .sheet .head { display:flex; align-items:flex-start; gap:10px; }
+  .pinbadge { width:14px; height:14px; border-radius:50%; margin-top:11px; flex:none; box-shadow:0 0 0 4px rgba(0,0,0,.07); }
+  .sheet h2 { margin:0; font-size:20px; line-height:1.4; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; margin-top:4px; }
+  .chip { font-size:12px; font-weight:600; padding:2px 10px; border-radius:20px; }
+  .chip.warranty { background:#fff8e1; color:#b26a00; border:1px solid #ffd54f; }
+  .chip.ok { background:#e8f5e9; color:#1b5e20; }
+  .chip.pend { background:#fff3e0; color:#e65100; }
+  .sheet .notes { color:var(--mut); margin:10px 0 0; font-size:14px; line-height:1.6; }
+  .sheet .meta { color:var(--mut); font-size:13px; text-align:center; margin:2px 0 10px; }
+  .row { display:flex; gap:8px; align-items:center; }
+  .yearrow { justify-content:center; margin:12px 0 4px; font-size:19px; font-weight:700; }
+  .yearrow button { background:#eef0f6; border:0; border-radius:10px; width:40px; height:40px; display:flex; align-items:center; justify-content:center; color:#2b3350; }
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .month { border:1px solid var(--line); background:#f6f7fb; border-radius:14px; padding:11px 4px; font-size:14px; font-weight:600; color:#4a5473;
+           display:flex; flex-direction:column; align-items:center; gap:3px; }
+  .month .ic { width:19px; height:19px; }
+  .month.done { background:var(--c); border-color:var(--c); color:#fff; }
+  .month.cur { outline:2px solid var(--main); outline-offset:1px; }
+  .actions { display:flex; gap:8px; margin-top:16px; }
+  .actions .btn { flex:1; }
+
+  .modal { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:2100; width:min(92vw,390px);
+           max-height:92dvh; overflow:auto; background:#fff; border-radius:20px; padding:20px; display:none; box-shadow:0 10px 40px rgba(0,0,0,.35); }
+  .modal.show { display:block; }
+  .modal h3 { margin:0 0 10px; font-size:18px; }
+  .modal p { margin:0 0 12px; font-size:13px; color:var(--mut); line-height:1.7; }
+  .modal input[type=text] { width:100%; padding:12px 14px; margin-bottom:10px; border:1px solid var(--line); border-radius:12px; font-size:15px; }
+  .modal input[type=text]:focus, .modal textarea:focus { outline:2px solid var(--main); border-color:transparent; }
+  .chk { display:flex; align-items:center; gap:10px; padding:11px 12px; margin-bottom:14px; background:#fff8e1; border-radius:12px; font-size:15px; font-weight:600; color:#7a4a00; }
+  .chk input { width:20px; height:20px; accent-color:#f9a825; }
+  #linksModal { z-index:2300; }
+  #linksModal textarea { width:100%; height:170px; padding:10px; border:1px solid var(--line); border-radius:12px; font-size:13px; resize:none; margin-bottom:8px; }
+  #linksMsg { white-space:pre-line; font-size:13px; margin-bottom:8px; }
+  #cfBack { z-index:2450; }
+  #confirmModal { z-index:2500; }
+
+  #toast { position:fixed; left:50%; bottom:calc(96px + env(safe-area-inset-bottom)); transform:translateX(-50%) translateY(10px); background:#1c2233; color:#fff;
+           padding:11px 18px; border-radius:12px; z-index:3000; font-size:14px; opacity:0; pointer-events:none; transition:.25s; max-width:90vw; text-align:center; }
+  #toast.show { opacity:1; transform:translateX(-50%); }
+
+  /* ---------- قائمة العملاء ---------- */
+  #listPanel { position:fixed; inset:0; z-index:2200; background:#f6f7fb; display:none; flex-direction:column; }
+  #listPanel.show { display:flex; }
+  #listHead { background:linear-gradient(135deg,var(--main2),var(--main)); color:#fff; padding:10px 14px; padding-top:calc(10px + env(safe-area-inset-top));
+              display:flex; gap:10px; align-items:center; font-size:17px; }
+  #listHead b { flex:1; }
+  #stats { margin:12px 12px 0; }
+  #stats .cap { font-size:13px; color:var(--mut); margin-bottom:6px; }
+  #stats .tw { border:1px solid var(--line); border-radius:14px; overflow:hidden; background:#fff; }
+  #stats table { width:100%; border-collapse:collapse; text-align:center; font-size:16px; }
+  #stats th, #stats td { padding:9px 6px; border-bottom:1px solid var(--line); border-left:1px solid var(--line); }
+  #stats tr:last-child td { border-bottom:0; }
+  #stats th:last-child, #stats td:last-child { border-left:0; }
+  #stats th { background:#eef0f6; font-size:13px; font-weight:600; color:#4a5473; }
+  #stats td.k { text-align:right; font-weight:600; font-size:15px; }
+  #stats .dotk { display:inline-block; width:11px; height:11px; border-radius:50%; margin-left:6px; vertical-align:middle; }
+  #stats tr.all td { background:#f6f7fb; font-weight:700; }
+  #search { margin:12px; padding:12px 14px; border:1px solid var(--line); border-radius:12px; font-size:15px; background:#fff; }
+  #search:focus { outline:2px solid var(--main); border-color:transparent; }
+  #items { flex:1; overflow:auto; padding-bottom:env(safe-area-inset-bottom); background:#fff; border-top:1px solid var(--line); }
+  .item { display:flex; align-items:center; gap:12px; padding:14px 16px; border-bottom:1px solid #eef0f4; }
+  .item:active { background:#f2f4fa; }
+  .dot { width:14px; height:14px; border-radius:50%; flex:none; box-shadow:0 0 0 3px rgba(0,0,0,.06); }
+  .item b { font-weight:600; }
+  .item small { color:var(--mut); display:block; font-size:12px; }
+  .empty { text-align:center; color:#98a2b3; padding:30px; }
   .leaflet-control-attribution { font-size:9px; }
 </style>
 </head>
 <body>
 
 <div id="bar">
-  <div class="title"><span id="monthLabel"></span><small id="remainLabel"></small></div>
-  <button class="iconbtn" id="dataBtn" aria-label="البيانات">💾</button>
-  <button class="iconbtn" id="listBtn" aria-label="القائمة">☰</button>
+  <div class="title">
+    <div class="app">صيانة المصاعد</div>
+    <div class="sub"><span id="monthLabel"></span> · <span id="remainLabel"></span></div>
+    <div class="prog"><i id="progFill"></i></div>
+  </div>
+  <button class="iconbtn" id="dataBtn" data-icon="data" aria-label="البيانات"></button>
+  <button class="iconbtn" id="listBtn" data-icon="list" aria-label="العملاء"></button>
 </div>
 
 <div id="map">
   <div id="qWrap">
     <div id="qBox">
-      <input id="q" type="search" placeholder="🔍 ابحث عن عميل" autocomplete="off">
-      <button id="qClear" aria-label="مسح">✕</button>
+      <span class="qi" data-icon="search"></span>
+      <input id="q" type="search" placeholder="ابحث عن عميل" autocomplete="off">
+      <button id="qClear" data-icon="close" aria-label="مسح"></button>
     </div>
     <div id="qRes"></div>
   </div>
-  <button class="fab" id="satBtn" aria-label="نوع الخريطة">🛰</button>
-  <button class="fab" id="locBtn" aria-label="موقعي">◎</button>
+  <button class="fab" id="satBtn" data-icon="layers" aria-label="نوع الخريطة"></button>
+  <button class="fab" id="locBtn" data-icon="locate" aria-label="موقعي"></button>
+  <div id="emptyCard" hidden>
+    <b>لسه مفيش عمارات</b>
+    <span>اضغط ضغطة طويلة على مكان العمارة في الخريطة لإضافتها، أو استورد بياناتك من زرار البيانات فوق.</span>
+  </div>
   <div id="hint">
     <span class="lg"><i style="background:#d32f2f"></i>عادي لسه</span>
     <span class="lg"><i style="background:#43a047"></i>عادي تم</span>
@@ -136,7 +197,6 @@
 </div>
 
 <div class="backdrop" id="backdrop"></div>
-
 <div class="sheet" id="sheet"></div>
 
 <div class="modal" id="form">
@@ -153,9 +213,9 @@
 <div class="modal" id="dataModal">
   <h3>البيانات</h3>
   <p>الملف بيحتوي كل العمارات (الاسم والموقع ونوع المصعد والملاحظات) وسجل الزيارات كله. احفظه في مكان آمن زي Google Drive، وارفعه تاني وقت ما تحتاج.</p>
-  <button class="btn primary block" id="exportBtn">⬇ تصدير كل البيانات (ملف)</button>
-  <button class="btn ghost block" id="importBtn">⬆ استيراد البيانات من ملف</button>
-  <button class="btn ghost block" id="importLinksBtn">📍 استيراد عمارات من روابط جوجل ماب</button>
+  <button class="btn primary block" id="exportBtn" data-icon="download"> تصدير كل البيانات (ملف)</button>
+  <button class="btn ghost block" id="importBtn" data-icon="upload"> استيراد البيانات من ملف</button>
+  <button class="btn ghost block" id="importLinksBtn" data-icon="pin"> استيراد عمارات من روابط جوجل ماب</button>
   <button class="btn ghost block" id="dataClose">إغلاق</button>
   <input type="file" id="importFile" accept=".json,application/json" hidden>
 </div>
@@ -172,8 +232,20 @@
   </div>
 </div>
 
+<div class="backdrop" id="cfBack"></div>
+<div class="modal" id="confirmModal">
+  <h3 id="cfTitle"></h3>
+  <p id="cfMsg"></p>
+  <div class="row">
+    <button class="btn ghost" id="cfNo" style="flex:1">إلغاء</button>
+    <button class="btn primary" id="cfOk" style="flex:1">تأكيد</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
 <div id="listPanel">
-  <div id="listHead"><button class="iconbtn" id="listClose">✕</button><b>العملاء</b></div>
+  <div id="listHead"><button class="iconbtn" id="listClose" data-icon="close" aria-label="إغلاق"></button><b>العملاء</b></div>
   <div id="stats"></div>
   <input id="search" placeholder="بحث بالاسم">
   <div id="items"></div>
@@ -200,15 +272,6 @@ const matches = (b, q) => { const nq = norm(q); return !nq || norm(b.name).inclu
 function colorOf(b, done) {
   if (b.type === 'warranty') return done ? '#1b5e20' : '#f9a825';
   return done ? '#43a047' : '#d32f2f';
-}
-
-// أول اسم من العميل (بنتخطى كلمة عمارة/برج/مبنى)
-function firstName(name) {
-  const skip = ['عمارة', 'عماره', 'برج', 'مبنى', 'عقار'];
-  const w = String(name).trim().split(/\s+/);
-  let i = 0;
-  while (i < w.length - 1 && skip.includes(w[i])) i++;
-  return w[i] || String(name);
 }
 
 function normalizeData(d) {
@@ -289,6 +352,59 @@ function parseImport(text) {
 const KEY = 'elev_data_v1';
 const $ = id => document.getElementById(id);
 
+// ---------------------------------------------------------------- icons
+const ICONS = {
+  list: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+  data: '<ellipse cx="12" cy="5.5" rx="8" ry="2.8"/><path d="M4 5.5v6.5c0 1.5 3.6 2.8 8 2.8s8-1.3 8-2.8V5.5"/><path d="M4 12v6.5C4 20 7.6 21.3 12 21.3s8-1.3 8-2.8V12"/>',
+  locate: '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>',
+  layers: '<path d="M12 3 3 8l9 5 9-5-9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 16 9 5 9-5"/>',
+  search: '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>',
+  close: '<path d="M6 6l12 12M18 6 6 18"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  circle: '<circle cx="12" cy="12" r="7.5"/>',
+  nav: '<path d="M3 11l18-8-8 18-2-8-8-2z"/>',
+  edit: '<path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/>',
+  trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/>',
+  download: '<path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/>',
+  upload: '<path d="M12 16V5m0 0-4 4m4-4 4 4M5 20h14"/>',
+  pin: '<path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/>',
+  prev: '<path d="m9 6 6 6-6 6"/>',
+  next: '<path d="m15 6-6 6 6 6"/>'
+};
+const ic = n => `<svg class="ic" viewBox="0 0 24 24">${ICONS[n]}</svg>`;
+document.querySelectorAll('[data-icon]').forEach(el => el.insertAdjacentHTML('afterbegin', ic(el.dataset.icon)));
+
+// ---------------------------------------------------------------- toast + confirm
+let toastTimer;
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+function askConfirm(title, msg, okText, danger) {
+  return new Promise(resolve => {
+    $('cfTitle').textContent = title;
+    $('cfMsg').textContent = msg;
+    const ok = $('cfOk');
+    ok.textContent = okText || 'تأكيد';
+    ok.className = 'btn ' + (danger ? 'dangersolid' : 'primary');
+    $('cfBack').classList.add('show');
+    $('confirmModal').classList.add('show');
+    const done = v => {
+      $('cfBack').classList.remove('show');
+      $('confirmModal').classList.remove('show');
+      ok.onclick = $('cfNo').onclick = $('cfBack').onclick = null;
+      resolve(v);
+    };
+    ok.onclick = () => done(true);
+    $('cfNo').onclick = () => done(false);
+    $('cfBack').onclick = () => done(false);
+  });
+}
+
+// ---------------------------------------------------------------- data
 let data = loadData();
 function loadData() {
   try { return normalizeData(JSON.parse(localStorage.getItem(KEY))); }
@@ -318,14 +434,14 @@ let satOn = localStorage.getItem('elev_sat') === '1';
 function applyBase() {
   if (satOn) { map.removeLayer(osm); sat.addTo(map); }
   else { map.removeLayer(sat); osm.addTo(map); }
-  $('satBtn').textContent = satOn ? '🗺' : '🛰';
+  $('satBtn').classList.toggle('on', satOn);
   localStorage.setItem('elev_sat', satOn ? '1' : '0');
 }
 $('satBtn').onclick = () => { satOn = !satOn; applyBase(); };
 applyBase();
 
-// الاسم بيظهر تحت العلامة لما تقرّب شوية
-function updLabels() { $('map').classList.toggle('nolabels', map.getZoom() < 13); }
+// أسماء العملاء بتظهر تحت العلامات لما تقرّب شوية
+function updLabels() { $('map').classList.toggle('nolabels', map.getZoom() < 14); }
 map.on('zoomend', updLabels);
 updLabels();
 
@@ -335,9 +451,9 @@ let meMarker = null;
 function pinIcon(color, label) {
   return L.divIcon({
     className: '',
-    iconSize: [90, 64],
-    iconAnchor: [45, 38],
-    html: `<div class="pinwrap">
+    iconSize: [124, 84],
+    iconAnchor: [62, 38],
+    html: `<div class="pinwrap" style="--c:${color}">
       <svg viewBox="0 0 24 24" width="42" height="42" style="filter:drop-shadow(0 2px 2px rgba(0,0,0,.5))">
         <path d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z" fill="${color}" stroke="#fff" stroke-width="1"/>
       </svg>
@@ -353,14 +469,15 @@ function render() {
     const done = isDone(b.id, y, m);
     if (!done) remaining++;
     L.marker([b.lat, b.lng], {
-      icon: pinIcon(colorOf(b, done), firstName(b.name)),
+      icon: pinIcon(colorOf(b, done), b.name),
       zIndexOffset: done ? 0 : 500
     }).on('click', () => openSheet(b.id)).addTo(layer);
   });
+  const total = data.buildings.length;
   $('monthLabel').textContent = MONTHS[m - 1] + ' ' + y;
-  $('remainLabel').textContent = data.buildings.length
-    ? `باقي ${remaining} من ${data.buildings.length}`
-    : 'لسه مفيش عمارات';
+  $('remainLabel').textContent = total ? `باقي ${remaining} من ${total}` : 'لسه مفيش عمارات';
+  $('progFill').style.width = (total ? ((total - remaining) / total) * 100 : 0) + '%';
+  $('emptyCard').hidden = total > 0;
 }
 
 function locate(silent) {
@@ -370,7 +487,7 @@ function locate(silent) {
     map.setView(ll, 16);
     if (meMarker) meMarker.setLatLng(ll);
     else meMarker = L.circleMarker(ll, { radius: 8, color: '#fff', weight: 3, fillColor: '#1976d2', fillOpacity: 1 }).addTo(map);
-  }, () => { if (!silent) alert('مش قادر أحدد موقعك. تأكد إن الموقع (GPS) شغال وإنك سمحت للمتصفح.'); },
+  }, () => { if (!silent) toast('مش قادر أحدد موقعك. تأكد إن الـ GPS شغال وإنك سمحت للمتصفح.'); },
   { enableHighAccuracy: true, timeout: 10000 });
 }
 $('locBtn').onclick = () => locate(false);
@@ -379,10 +496,10 @@ function fitAll() {
   if (data.buildings.length) map.fitBounds(data.buildings.map(b => [b.lat, b.lng]), { padding: [40, 40], maxZoom: 16 });
 }
 
-// ---------------------------------------------------------------- add building
+// ---------------------------------------------------------------- add / edit building
 let pendingPos = null, editingId = null;
 
-// الضغط المطوّل على الخريطة برضه بيضيف عمارة
+// الضغط المطوّل على الخريطة بيضيف عمارة
 map.on('contextmenu', e => { pendingPos = e.latlng; openForm(null); });
 
 function openForm(id) {
@@ -410,10 +527,12 @@ $('fSave').onclick = () => {
     const b = data.buildings.find(x => x.id === editingId);
     b.name = name; b.notes = notes; b.type = type;
     save(); closeForm(); render(); renderSheet();
+    toast('تم حفظ التعديل');
   } else {
     const id = 'b' + Date.now();
     data.buildings.push({ id, name, notes, type, lat: pendingPos.lat, lng: pendingPos.lng });
     save(); closeForm(); render();
+    toast('تمت إضافة العمارة');
   }
 };
 
@@ -436,24 +555,36 @@ function renderSheet() {
   const b = data.buildings.find(x => x.id === curId);
   if (!b) return;
   const ny = nowY(), nm = nowM();
+  const curDone = isDone(b.id, ny, nm);
+  const doneInYear = (data.visits[b.id] || []).filter(k => k.startsWith(curYear + '-')).length;
   let grid = '';
   for (let m = 1; m <= 12; m++) {
     const done = isDone(b.id, curYear, m);
     const cur = curYear === ny && m === nm;
-    grid += `<button class="month ${done ? 'done' : ''} ${cur ? 'cur' : ''}" data-m="${m}">${MONTHS[m - 1]}<br>${done ? '✔' : '○'}</button>`;
+    grid += `<button class="month ${done ? 'done' : ''} ${cur ? 'cur' : ''}" data-m="${m}">${ic(done ? 'check' : 'circle')}<span>${MONTHS[m - 1]}</span></button>`;
   }
   $('sheet').innerHTML = `
-    <h2>${esc(b.name)} ${b.type === 'warranty' ? '<span class="tag">ضمان</span>' : ''}</h2>
+    <div class="head">
+      <span class="pinbadge" style="background:${colorOf(b, curDone)}"></span>
+      <div style="flex:1;min-width:0">
+        <h2>${esc(b.name)}</h2>
+        <div class="chips">
+          ${b.type === 'warranty' ? '<span class="chip warranty">مصعد ضمان</span>' : ''}
+          <span class="chip ${curDone ? 'ok' : 'pend'}">${curDone ? 'تمت صيانة هذا الشهر' : 'لسه هذا الشهر'}</span>
+        </div>
+      </div>
+    </div>
     ${b.notes ? `<p class="notes">${esc(b.notes)}</p>` : ''}
     <div class="row yearrow">
-      <button id="yPrev">›</button><span>${curYear}</span><button id="yNext">‹</button>
+      <button id="yPrev" aria-label="السنة السابقة">${ic('prev')}</button><span>${curYear}</span><button id="yNext" aria-label="السنة التالية">${ic('next')}</button>
     </div>
-    <div class="grid">${grid}</div>
+    <div class="meta">تمت صيانة ${doneInYear} من 12 شهر</div>
+    <div class="grid" style="--c:${colorOf(b, true)}">${grid}</div>
     <div class="actions">
       <a class="btn primary" target="_blank" rel="noopener"
-         href="https://www.google.com/maps/dir/?api=1&destination=${b.lat},${b.lng}">الاتجاهات</a>
-      <button class="btn ghost" id="editB">تعديل</button>
-      <button class="btn danger" id="delB">حذف</button>
+         href="https://www.google.com/maps/dir/?api=1&destination=${b.lat},${b.lng}">${ic('nav')}الاتجاهات</a>
+      <button class="btn ghost" id="editB">${ic('edit')}تعديل</button>
+      <button class="btn danger" id="delB">${ic('trash')}حذف</button>
     </div>`;
   $('yPrev').onclick = () => { curYear--; renderSheet(); };
   $('yNext').onclick = () => { curYear++; renderSheet(); };
@@ -461,11 +592,13 @@ function renderSheet() {
     el.onclick = () => toggleMonth(b.id, curYear, +el.dataset.m);
   });
   $('editB').onclick = () => openForm(b.id);
-  $('delB').onclick = () => {
-    if (!confirm('تحذف "' + b.name + '" وكل سجل زياراتها؟')) return;
+  $('delB').onclick = async () => {
+    const ok = await askConfirm('حذف العميل', 'هيتم حذف "' + b.name + '" وكل سجل زياراته نهائياً.', 'حذف', true);
+    if (!ok) return;
     data.buildings = data.buildings.filter(x => x.id !== b.id);
     delete data.visits[b.id];
     save(); closeSheet(); render();
+    toast('تم حذف العميل');
   };
 }
 function toggleMonth(id, y, m) {
@@ -486,21 +619,23 @@ $('backdrop').onclick = () => {
 L.DomEvent.disableClickPropagation($('qWrap'));
 L.DomEvent.disableScrollPropagation($('qWrap'));
 
+function itemHtml(b, y, m) {
+  const done = isDone(b.id, y, m);
+  return `<div class="item" data-id="${b.id}">
+    <span class="dot" style="background:${colorOf(b, done)}"></span>
+    <div><b>${esc(b.name)}</b><small>${b.type === 'warranty' ? 'ضمان · ' : ''}${done ? 'تمت صيانة الشهر ده' : 'لسه'}</small></div></div>`;
+}
+
 function renderSearch() {
   const q = $('q').value;
-  $('qClear').style.display = q ? 'block' : 'none';
+  $('qClear').style.display = q ? 'flex' : 'none';
   if (!q.trim()) { $('qRes').style.display = 'none'; return; }
   const y = nowY(), m = nowM();
   const found = data.buildings.filter(b => matches(b, q))
     .sort((a, b) => a.name.localeCompare(b.name, 'ar')).slice(0, 8);
   $('qRes').style.display = 'block';
   if (!found.length) { $('qRes').innerHTML = '<div class="empty">مفيش عميل بالاسم ده</div>'; return; }
-  $('qRes').innerHTML = found.map(b => {
-    const done = isDone(b.id, y, m);
-    return `<div class="item" data-id="${b.id}">
-      <span class="dot" style="background:${colorOf(b, done)}"></span>
-      <div><b>${esc(b.name)}</b><small>${b.type === 'warranty' ? 'ضمان · ' : ''}${done ? 'تمت صيانة الشهر ده' : 'لسه'}</small></div></div>`;
-  }).join('');
+  $('qRes').innerHTML = found.map(b => itemHtml(b, y, m)).join('');
   $('qRes').querySelectorAll('.item').forEach(el => {
     el.onclick = () => {
       const b = data.buildings.find(x => x.id === el.dataset.id);
@@ -522,6 +657,7 @@ map.on('click', () => { $('qRes').style.display = 'none'; $('q').blur(); });
 
 // ---------------------------------------------------------------- list
 function openList() { $('listPanel').classList.add('show'); $('search').value = ''; renderList(); }
+
 function renderStats() {
   const y = nowY(), m = nowM();
   const s = { regular: { rem: 0, tot: 0 }, warranty: { rem: 0, tot: 0 } };
@@ -533,13 +669,14 @@ function renderStats() {
   const remCol = (n, c) => `<td style="color:${n ? c : '#2e7d32'};font-weight:700">${n}</td>`;
   $('stats').innerHTML = `
     <div class="cap">حالة شهر ${MONTHS[m - 1]} ${y}</div>
-    <table>
+    <div class="tw"><table>
       <tr><th></th><th>باقي (لسه)</th><th>الإجمالي</th></tr>
       <tr><td class="k"><span class="dotk" style="background:#d32f2f"></span>عادي</td>${remCol(s.regular.rem, '#d32f2f')}<td>${s.regular.tot}</td></tr>
       <tr><td class="k"><span class="dotk" style="background:#f9a825"></span>ضمان</td>${remCol(s.warranty.rem, '#e65100')}<td>${s.warranty.tot}</td></tr>
       <tr class="all"><td class="k">الكل</td><td>${s.regular.rem + s.warranty.rem}</td><td>${s.regular.tot + s.warranty.tot}</td></tr>
-    </table>`;
+    </table></div>`;
 }
+
 function renderList() {
   renderStats();
   const q = $('search').value.trim();
@@ -547,12 +684,7 @@ function renderList() {
   const items = data.buildings.filter(b => matches(b, q))
     .sort((a, b) => a.name.localeCompare(b.name, 'ar'));
   if (!items.length) { $('items').innerHTML = '<div class="empty">مفيش نتائج</div>'; return; }
-  $('items').innerHTML = items.map(b => {
-    const done = isDone(b.id, y, m);
-    return `<div class="item" data-id="${b.id}">
-      <span class="dot" style="background:${colorOf(b, done)}"></span>
-      <div><b>${esc(b.name)}</b><small>${b.type === 'warranty' ? 'ضمان · ' : ''}${done ? 'تمت صيانة الشهر ده' : 'لسه'}</small></div></div>`;
-  }).join('');
+  $('items').innerHTML = items.map(b => itemHtml(b, y, m)).join('');
   $('items').querySelectorAll('.item').forEach(el => {
     el.onclick = () => {
       const b = data.buildings.find(x => x.id === el.dataset.id);
@@ -585,6 +717,7 @@ $('exportBtn').onclick = () => {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+  toast('تم تجهيز ملف البيانات');
 };
 
 $('importBtn').onclick = () => $('importFile').click();
@@ -592,13 +725,15 @@ $('importFile').onchange = e => {
   const f = e.target.files[0];
   if (!f) return;
   const r = new FileReader();
-  r.onload = () => {
-    try {
-      const d = normalizeData(JSON.parse(r.result));
-      if (!confirm('الملف فيه ' + d.buildings.length + ' عمارة. هيتم استبدال كل البيانات الحالية بيها. متأكد؟')) return;
-      data = d; save(); render(); renderList(); closeData(); fitAll();
-      alert('تم استيراد ' + d.buildings.length + ' عمارة');
-    } catch (err) { alert('الملف ده مش ملف بيانات صالح'); }
+  r.onload = async () => {
+    let d;
+    try { d = normalizeData(JSON.parse(r.result)); }
+    catch (err) { toast('الملف ده مش ملف بيانات صالح'); return; }
+    const ok = await askConfirm('استبدال البيانات',
+      'الملف فيه ' + d.buildings.length + ' عمارة. هيتم استبدال كل البيانات الحالية بيها.', 'استبدال', true);
+    if (!ok) return;
+    data = d; save(); render(); renderList(); closeData(); fitAll();
+    toast('تم استيراد ' + d.buildings.length + ' عمارة');
   };
   r.readAsText(f);
   e.target.value = '';
