@@ -61,6 +61,19 @@
               display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
   .nolabels .pinlabel { display:none; }
 
+  .fab.r { left:auto; right:12px; }
+  #compass { top:96px; width:44px; height:44px; }
+  #compass svg { width:30px; height:30px; transition:transform .05s linear; }
+
+  /* تحريك موقع علامة */
+  #crosshair { position:absolute; z-index:1300; left:50%; top:50%; width:44px; height:44px; margin:-40px 0 0 -22px; pointer-events:none;
+               filter:drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
+  #crossDot { position:absolute; z-index:1299; left:50%; top:50%; width:8px; height:8px; margin:-4px 0 0 -4px; border-radius:50%;
+              background:rgba(0,0,0,.65); border:2px solid #fff; pointer-events:none; box-sizing:content-box; }
+  #movebar { position:absolute; z-index:1400; left:10px; right:10px; bottom:calc(10px + env(safe-area-inset-bottom)); direction:rtl;
+             background:#fff; border-radius:16px; padding:12px; box-shadow:0 4px 16px rgba(0,0,0,.35); display:flex; gap:10px; align-items:center; }
+  #movebar span { flex:1; font-size:13px; line-height:1.6; }
+
   /* ---------- البحث ---------- */
   #qWrap { position:absolute; z-index:1250; top:30px; left:10px; right:10px; direction:rtl; }
   #qBox { position:relative; }
@@ -110,8 +123,7 @@
   .month .ic { width:19px; height:19px; }
   .month.done { background:var(--c); border-color:var(--c); color:#fff; }
   .month.cur { outline:2px solid var(--main); outline-offset:1px; }
-  .actions { display:flex; gap:8px; margin-top:16px; }
-  .actions .btn { flex:1; }
+  .actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:16px; }
 
   .modal { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); z-index:2100; width:min(92vw,390px);
            max-height:92dvh; overflow:auto; background:#fff; border-radius:20px; padding:20px; display:none; box-shadow:0 10px 40px rgba(0,0,0,.35); }
@@ -126,6 +138,8 @@
   #linksModal textarea { width:100%; height:170px; padding:10px; border:1px solid var(--line); border-radius:12px; font-size:13px; resize:none; margin-bottom:8px; }
   #linksMsg { white-space:pre-line; font-size:13px; margin-bottom:8px; }
   #cfBack { z-index:2450; }
+  #confirmModal .row { flex-wrap:wrap; }
+  #confirmModal .row .btn { flex:1 1 110px; }
   #confirmModal { z-index:2500; }
 
   #toast { position:fixed; left:50%; bottom:calc(96px + env(safe-area-inset-bottom)); transform:translateX(-50%) translateY(10px); background:#1c2233; color:#fff;
@@ -184,6 +198,18 @@
   </div>
   <button class="fab" id="satBtn" data-icon="layers" aria-label="نوع الخريطة"></button>
   <button class="fab" id="locBtn" data-icon="locate" aria-label="موقعي"></button>
+  <button class="fab r" id="compass" hidden aria-label="الرجوع للشمال">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10.5" fill="#fff" stroke="#b0b7c3" stroke-width="1.2"/><path d="M12 3.5l3.2 8.5H8.8z" fill="#d32f2f"/><path d="M12 20.5l-3.2-8.5h6.4z" fill="#90a4ae"/></svg>
+  </button>
+  <div id="moveUI" hidden>
+    <svg id="crosshair" viewBox="0 0 24 24"><path d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z" fill="#d32f2f" stroke="#fff" stroke-width="1"/></svg>
+    <i id="crossDot"></i>
+  </div>
+  <div id="movebar" hidden>
+    <span>حرّك الخريطة لحد ما العلامة تبقى على مكان العمارة الصح، وبعدين اضغط تأكيد.</span>
+    <button class="btn ghost" id="moveCancel">إلغاء</button>
+    <button class="btn primary" id="moveOk">تأكيد</button>
+  </div>
   <div id="emptyCard" hidden>
     <b>لسه مفيش عمارات</b>
     <span>اضغط ضغطة طويلة على مكان العمارة في الخريطة لإضافتها، أو استورد بياناتك من زرار البيانات فوق.</span>
@@ -237,8 +263,9 @@
   <h3 id="cfTitle"></h3>
   <p id="cfMsg"></p>
   <div class="row">
-    <button class="btn ghost" id="cfNo" style="flex:1">إلغاء</button>
-    <button class="btn primary" id="cfOk" style="flex:1">تأكيد</button>
+    <button class="btn ghost" id="cfNo">إلغاء</button>
+    <button class="btn primary" id="cfAlt" hidden></button>
+    <button class="btn primary" id="cfOk">تأكيد</button>
   </div>
 </div>
 
@@ -252,6 +279,7 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
 <script>
 // ================================================================ helpers (بدون واجهة)
 const MONTHS = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
@@ -368,6 +396,7 @@ const ICONS = {
   download: '<path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/>',
   upload: '<path d="M12 16V5m0 0-4 4m4-4 4 4M5 20h14"/>',
   pin: '<path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/>',
+  move: '<path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/>',
   prev: '<path d="m9 6 6 6-6 6"/>',
   next: '<path d="m15 6-6 6 6 6"/>'
 };
@@ -383,22 +412,26 @@ function toast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
 }
-function askConfirm(title, msg, okText, danger) {
+// بترجّع true (الزرار الأخير) أو 'alt' (الزرار الأوسط) أو false (إلغاء)
+function askConfirm(title, msg, okText, danger, altText) {
   return new Promise(resolve => {
     $('cfTitle').textContent = title;
     $('cfMsg').textContent = msg;
-    const ok = $('cfOk');
+    const ok = $('cfOk'), alt = $('cfAlt');
     ok.textContent = okText || 'تأكيد';
     ok.className = 'btn ' + (danger ? 'dangersolid' : 'primary');
+    alt.hidden = !altText;
+    alt.textContent = altText || '';
     $('cfBack').classList.add('show');
     $('confirmModal').classList.add('show');
     const done = v => {
       $('cfBack').classList.remove('show');
       $('confirmModal').classList.remove('show');
-      ok.onclick = $('cfNo').onclick = $('cfBack').onclick = null;
+      ok.onclick = alt.onclick = $('cfNo').onclick = $('cfBack').onclick = null;
       resolve(v);
     };
     ok.onclick = () => done(true);
+    alt.onclick = () => done('alt');
     $('cfNo').onclick = () => done(false);
     $('cfBack').onclick = () => done(false);
   });
@@ -411,12 +444,34 @@ function loadData() {
   catch (e) { return { buildings: [], visits: {} }; }
 }
 function save() { localStorage.setItem(KEY, JSON.stringify(data)); }
+// دمج بيانات ملف مع الموجود (من غير تكرار)
+function mergeData(d) {
+  let added = 0;
+  const idMap = {};
+  d.buildings.forEach(nb => {
+    const match = data.buildings.find(b => b.id === nb.id ||
+      (norm(b.name) === norm(nb.name) && Math.abs(b.lat - nb.lat) < 0.0002 && Math.abs(b.lng - nb.lng) < 0.0002));
+    if (match) { idMap[nb.id] = match.id; return; }
+    let id = nb.id;
+    if (data.buildings.some(b => b.id === id)) id = 'b' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+    data.buildings.push({ ...nb, id });
+    idMap[nb.id] = id;
+    added++;
+  });
+  Object.keys(d.visits).forEach(oldId => {
+    const target = idMap[oldId];
+    if (!target) return;
+    data.visits[target] = Array.from(new Set([...(data.visits[target] || []), ...d.visits[oldId]]));
+  });
+  return added;
+}
 const isDone = (id, y, m) => (data.visits[id] || []).includes(ym(y, m));
 const nowY = () => new Date().getFullYear();
 const nowM = () => new Date().getMonth() + 1;
 
 // ---------------------------------------------------------------- map
-const map = L.map('map', { zoomControl: false }).setView([30.0444, 31.2357], 12);
+const map = L.map('map', { zoomControl: false, rotate: true, bearing: 0, touchRotate: true, rotateControl: false })
+  .setView([30.0444, 31.2357], 12);
 map.attributionControl.setPosition('topleft');
 
 const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -468,10 +523,12 @@ function render() {
   data.buildings.forEach(b => {
     const done = isDone(b.id, y, m);
     if (!done) remaining++;
+    if (b.id === movingId) return;
     L.marker([b.lat, b.lng], {
       icon: pinIcon(colorOf(b, done), b.name),
-      zIndexOffset: done ? 0 : 500
-    }).on('click', () => openSheet(b.id)).addTo(layer);
+      zIndexOffset: done ? 0 : 500,
+      rotateWithView: false
+    }).on('click', () => { if (!movingId) openSheet(b.id); }).addTo(layer);
   });
   const total = data.buildings.length;
   $('monthLabel').textContent = MONTHS[m - 1] + ' ' + y;
@@ -496,11 +553,55 @@ function fitAll() {
   if (data.buildings.length) map.fitBounds(data.buildings.map(b => [b.lat, b.lng]), { padding: [40, 40], maxZoom: 16 });
 }
 
+// ---------------------------------------------------------------- rotation compass
+function updCompass() {
+  if (!map.getBearing) return;
+  const b = map.getBearing();
+  $('compass').hidden = (b < 1 || b > 359);
+  $('compass').firstElementChild.style.transform = 'rotate(' + (-b) + 'deg)';
+}
+map.on('rotate', updCompass);
+$('compass').onclick = () => { if (map.setBearing) map.setBearing(0); };
+
+// ---------------------------------------------------------------- move a building's pin
+let movingId = null;
+const MOVE_HIDE = ['locBtn', 'satBtn', 'hint', 'qWrap'];
+function startMove(id) {
+  const b = data.buildings.find(x => x.id === id);
+  if (!b) return;
+  closeSheet();
+  movingId = id;
+  $('crosshair').querySelector('path').setAttribute('fill', colorOf(b, isDone(b.id, nowY(), nowM())));
+  MOVE_HIDE.forEach(i => $(i).style.display = 'none');
+  $('moveUI').hidden = false;
+  $('movebar').hidden = false;
+  render();
+  map.setView([b.lat, b.lng], Math.max(map.getZoom(), 18));
+}
+function endMove() {
+  movingId = null;
+  $('moveUI').hidden = true;
+  $('movebar').hidden = true;
+  MOVE_HIDE.forEach(i => $(i).style.display = '');
+  render();
+}
+$('moveCancel').onclick = endMove;
+$('moveOk').onclick = () => {
+  const b = data.buildings.find(x => x.id === movingId);
+  if (b) {
+    const c = map.getCenter();
+    b.lat = c.lat; b.lng = c.lng;
+    save();
+  }
+  endMove();
+  toast('تم تحديث موقع العمارة');
+};
+
 // ---------------------------------------------------------------- add / edit building
 let pendingPos = null, editingId = null;
 
 // الضغط المطوّل على الخريطة بيضيف عمارة
-map.on('contextmenu', e => { pendingPos = e.latlng; openForm(null); });
+map.on('contextmenu', e => { if (movingId) return; pendingPos = e.latlng; openForm(null); });
 
 function openForm(id) {
   editingId = id;
@@ -540,6 +641,7 @@ $('fSave').onclick = () => {
 let curId = null, curYear = nowY();
 
 function openSheet(id) {
+  if (movingId) endMove();
   curId = id;
   curYear = nowY();
   renderSheet();
@@ -583,6 +685,7 @@ function renderSheet() {
     <div class="actions">
       <a class="btn primary" target="_blank" rel="noopener"
          href="https://www.google.com/maps/dir/?api=1&destination=${b.lat},${b.lng}">${ic('nav')}الاتجاهات</a>
+      <button class="btn ghost" id="moveB">${ic('move')}تحريك الموقع</button>
       <button class="btn ghost" id="editB">${ic('edit')}تعديل</button>
       <button class="btn danger" id="delB">${ic('trash')}حذف</button>
     </div>`;
@@ -591,6 +694,7 @@ function renderSheet() {
   $('sheet').querySelectorAll('.month').forEach(el => {
     el.onclick = () => toggleMonth(b.id, curYear, +el.dataset.m);
   });
+  $('moveB').onclick = () => startMove(b.id);
   $('editB').onclick = () => openForm(b.id);
   $('delB').onclick = async () => {
     const ok = await askConfirm('حذف العميل', 'هيتم حذف "' + b.name + '" وكل سجل زياراته نهائياً.', 'حذف', true);
@@ -729,11 +833,18 @@ $('importFile').onchange = e => {
     let d;
     try { d = normalizeData(JSON.parse(r.result)); }
     catch (err) { toast('الملف ده مش ملف بيانات صالح'); return; }
-    const ok = await askConfirm('استبدال البيانات',
-      'الملف فيه ' + d.buildings.length + ' عمارة. هيتم استبدال كل البيانات الحالية بيها.', 'استبدال', true);
-    if (!ok) return;
-    data = d; save(); render(); renderList(); closeData(); fitAll();
-    toast('تم استيراد ' + d.buildings.length + ' عمارة');
+    const choice = await askConfirm('استيراد البيانات',
+      'الملف فيه ' + d.buildings.length + ' عمارة. تحب تضيفها على اللي عندك، ولا تستبدل كل البيانات الحالية بيها؟',
+      'استبدال الكل', true, 'إضافة للموجود');
+    if (!choice) return;
+    if (choice === 'alt') {
+      const n = mergeData(d);
+      save(); render(); renderList(); closeData(); fitAll();
+      toast('تمت إضافة ' + n + ' عمارة جديدة');
+    } else {
+      data = d; save(); render(); renderList(); closeData(); fitAll();
+      toast('تم استبدال البيانات بـ ' + d.buildings.length + ' عمارة');
+    }
   };
   r.readAsText(f);
   e.target.value = '';
