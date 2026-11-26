@@ -29,6 +29,9 @@
   #bar .title { flex:1; min-width:0; }
   #bar .app { font-size:17px; font-weight:700; line-height:1.25; }
   #bar .sub { font-size:12px; opacity:.92; margin-top:1px; }
+  #pct { background:rgba(255,255,255,.16); border-radius:12px; padding:5px 10px; text-align:center; line-height:1.15; min-width:56px; }
+  #pct b { display:block; font-size:19px; font-weight:700; }
+  #pct small { font-size:10.5px; opacity:.92; }
   .prog { height:5px; background:rgba(255,255,255,.25); border-radius:5px; margin-top:7px; overflow:hidden; }
   .prog i { display:block; height:100%; width:0; background:#69f0ae; border-radius:5px; transition:width .4s; }
   .iconbtn { background:rgba(255,255,255,.16); color:#fff; border:0; border-radius:12px; width:42px; height:42px;
@@ -134,8 +137,8 @@
   .modal.show { display:block; }
   .modal h3 { margin:0 0 10px; font-size:18px; }
   .modal p { margin:0 0 12px; font-size:13px; color:var(--mut); line-height:1.7; }
-  .modal input[type=text] { width:100%; padding:12px 14px; margin-bottom:10px; border:1px solid var(--line); border-radius:12px; font-size:15px; }
-  .modal input[type=text]:focus, .modal textarea:focus { outline:2px solid var(--main); border-color:transparent; }
+  .modal input[type=text], .modal input[type=password] { width:100%; padding:12px 14px; margin-bottom:10px; border:1px solid var(--line); border-radius:12px; font-size:15px; }
+  .modal input[type=text]:focus, .modal input[type=password]:focus, .modal textarea:focus { outline:2px solid var(--main); border-color:transparent; }
   .chk { display:flex; align-items:center; gap:10px; padding:11px 12px; margin-bottom:14px; background:#fff8e1; border-radius:12px; font-size:15px; font-weight:600; color:#7a4a00; }
   .chk input { width:20px; height:20px; accent-color:#f9a825; }
   .chk.dark { background:#eceff1; color:#111; }
@@ -147,13 +150,13 @@
   #linksModal { z-index:2300; }
   #linksModal textarea { width:100%; height:170px; padding:10px; border:1px solid var(--line); border-radius:12px; font-size:13px; resize:none; margin-bottom:8px; }
   #linksMsg { white-space:pre-line; font-size:13px; margin-bottom:8px; }
-  #cfBack { z-index:2450; }
+  #cfBack { z-index:5100; }
   #confirmModal .row { flex-wrap:wrap; }
   #confirmModal .row .btn { flex:1 1 110px; }
-  #confirmModal { z-index:2500; }
+  #confirmModal { z-index:5200; }
 
   #toast { position:fixed; left:50%; bottom:calc(96px + env(safe-area-inset-bottom)); transform:translateX(-50%) translateY(10px); background:#1c2233; color:#fff;
-           padding:11px 18px; border-radius:12px; z-index:3000; font-size:14px; opacity:0; pointer-events:none; transition:.25s; max-width:90vw; text-align:center; }
+           padding:11px 18px; border-radius:12px; z-index:5300; font-size:14px; opacity:0; pointer-events:none; transition:.25s; max-width:90vw; text-align:center; }
   #toast.show { opacity:1; transform:translateX(-50%); }
 
   /* ---------- قائمة العملاء ---------- */
@@ -182,6 +185,17 @@
   .item b { font-weight:600; }
   .item small { color:var(--mut); display:block; font-size:12px; }
   .empty { text-align:center; color:#98a2b3; padding:30px; }
+  /* ---------- شاشة الدخول ---------- */
+  #lock { position:fixed; inset:0; z-index:5000; background:linear-gradient(135deg,var(--main2),var(--main)); display:flex; align-items:center; justify-content:center; padding:20px; overflow:auto; }
+  .lockcard { background:#fff; border-radius:24px; padding:26px 20px 20px; width:min(100%,380px); text-align:center; box-shadow:0 10px 40px rgba(0,0,0,.35); }
+  .lockicon { width:64px; height:64px; margin:0 auto 10px; border-radius:20px; background:#eef1fb; color:var(--main); display:flex; align-items:center; justify-content:center; }
+  .lockicon .ic { width:32px; height:32px; }
+  .lockcard h2 { margin:0 0 4px; font-size:21px; }
+  .lockcard p { margin:0 0 16px; color:var(--mut); font-size:13px; line-height:1.7; }
+  .lockcard input { width:100%; padding:13px 14px; border:1px solid var(--line); border-radius:12px; font-size:16px; margin-bottom:10px; text-align:center; }
+  .lockcard input:focus { outline:2px solid var(--main); border-color:transparent; }
+  #lErr, #pwErr { color:var(--red); font-size:13px; min-height:18px; margin-bottom:8px; line-height:1.5; }
+  .linkbtn { background:none; border:0; color:var(--main); margin-top:4px; font-size:13px; padding:8px; }
   .leaflet-control-attribution { font-size:9px; }
 </style>
 </head>
@@ -193,6 +207,7 @@
     <div class="sub"><span id="monthLabel"></span> · <span id="remainLabel"></span></div>
     <div class="prog"><i id="progFill"></i></div>
   </div>
+  <div id="pct"><b id="pctNum">0%</b><small>تمت الصيانة</small></div>
   <button class="iconbtn" id="dataBtn" data-icon="data" aria-label="البيانات"></button>
   <button class="iconbtn" id="listBtn" data-icon="list" aria-label="العملاء"></button>
 </div>
@@ -259,6 +274,8 @@
   <button class="btn ghost block" id="importBtn" data-icon="upload"> استيراد البيانات من ملف</button>
   <button class="btn ghost block" id="importLinksBtn" data-icon="pin"> استيراد عمارات من روابط جوجل ماب</button>
   <button class="btn ghost block" id="rotBtn" data-icon="rotate"> <span id="rotTxt"></span></button>
+  <button class="btn ghost block" id="pwBtn" data-icon="key"> تغيير اسم المستخدم / كلمة السر</button>
+  <button class="btn ghost block" id="lockBtn" data-icon="lock"> قفل التطبيق (تسجيل خروج)</button>
   <button class="btn ghost block" id="dataClose">إغلاق</button>
   <input type="file" id="importFile" accept=".json,application/json" hidden>
 </div>
@@ -283,6 +300,33 @@
     <button class="btn ghost" id="cfNo">إلغاء</button>
     <button class="btn primary" id="cfAlt" hidden></button>
     <button class="btn primary" id="cfOk">تأكيد</button>
+  </div>
+</div>
+
+<div class="modal" id="pwModal">
+  <h3>تغيير بيانات الدخول</h3>
+  <input type="password" id="pwOld" placeholder="كلمة السر الحالية" autocomplete="current-password">
+  <input type="text" id="pwUser" placeholder="اسم المستخدم" autocapitalize="off" autocomplete="username">
+  <input type="password" id="pwNew" placeholder="كلمة سر جديدة (سيبها فاضية لو مش عاوز تغيّرها)" autocomplete="new-password">
+  <input type="password" id="pwNew2" placeholder="أعد كتابة كلمة السر الجديدة" autocomplete="new-password">
+  <div id="pwErr"></div>
+  <div class="row">
+    <button class="btn ghost" id="pwCancel" style="flex:1">إلغاء</button>
+    <button class="btn primary" id="pwSave" style="flex:1">حفظ</button>
+  </div>
+</div>
+
+<div id="lock" hidden>
+  <div class="lockcard">
+    <div class="lockicon" data-icon="lock"></div>
+    <h2 id="lTitle">تسجيل الدخول</h2>
+    <p id="lSub"></p>
+    <input type="text" id="lUser" placeholder="اسم المستخدم" autocapitalize="off" autocomplete="username">
+    <input type="password" id="lPass" placeholder="كلمة السر" autocomplete="current-password">
+    <input type="password" id="lPass2" placeholder="أعد كتابة كلمة السر" autocomplete="new-password" hidden>
+    <div id="lErr"></div>
+    <button class="btn primary block" id="lGo">دخول</button>
+    <button class="linkbtn" id="lForgot">نسيت كلمة السر؟</button>
   </div>
 </div>
 
@@ -431,6 +475,8 @@ const ICONS = {
   pin: '<path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/>',
   move: '<path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/>',
   rotate: '<path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/>',
+  lock: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  key: '<circle cx="8" cy="15" r="3.5"/><path d="m10.5 12.5 8-8M15 7l2.5 2.5"/>',
   prev: '<path d="m9 6 6 6-6 6"/>',
   next: '<path d="m15 6-6 6 6 6"/>'
 };
@@ -585,7 +631,9 @@ function render() {
   $('remainLabel').textContent = total
     ? (active ? `باقي ${remaining} من ${active}` : 'مفيش عمارات نشطة') + (expired ? ` · غير مجدد ${expired}` : '')
     : 'لسه مفيش عمارات';
-  $('progFill').style.width = (active ? ((active - remaining) / active) * 100 : 0) + '%';
+  const pct = !active ? 0 : (remaining === 0 ? 100 : Math.min(99, Math.round(((active - remaining) / active) * 100)));
+  $('progFill').style.width = pct + '%';
+  $('pctNum').textContent = active ? pct + '%' : '—';
   $('emptyCard').hidden = total > 0;
 }
 
@@ -778,7 +826,8 @@ function toggleMonth(id, y, m) {
 }
 
 $('backdrop').onclick = () => {
-  if ($('linksModal').classList.contains('show')) closeLinks();
+  if ($('pwModal').classList.contains('show')) closePw();
+  else if ($('linksModal').classList.contains('show')) closeLinks();
   else if ($('dataModal').classList.contains('show')) closeData();
   else if ($('form').classList.contains('show')) closeForm();
   else closeSheet();
@@ -967,10 +1016,145 @@ $('linksGo').onclick = () => {
   $('linksMsg').textContent = msg;
 };
 
+// ---------------------------------------------------------------- login (قفل التطبيق على الموبايل ده)
+const AUTH_KEY = 'elev_auth_v1';
+const AUTO_LOCK_MS = 10 * 60 * 1000;
+const enc = new TextEncoder();
+const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const getAuth = () => { try { return JSON.parse(localStorage.getItem(AUTH_KEY)); } catch (e) { return null; } };
+const cryptoOk = () => !!(window.crypto && crypto.subtle);
+
+async function hashPass(pass, saltB64, iters) {
+  const key = await crypto.subtle.importKey('raw', enc.encode(pass), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', hash: 'SHA-256', salt: unb64(saltB64), iterations: iters }, key, 256);
+  return b64(bits);
+}
+async function makeAuth(user, pass) {
+  const salt = b64(crypto.getRandomValues(new Uint8Array(16)));
+  const iters = 150000;
+  return { user, salt, iters, hash: await hashPass(pass, salt, iters) };
+}
+
+let attempts = 0, lockedUntil = 0, located = false, hiddenAt = 0;
+
+function showLock() {
+  const a = getAuth();
+  $('lock').hidden = false;
+  $('lUser').value = '';
+  $('lPass').value = '';
+  $('lPass2').value = '';
+  $('lPass2').hidden = !!a;
+  $('lForgot').hidden = !a;
+  $('lErr').textContent = '';
+  $('lTitle').textContent = a ? 'تسجيل الدخول' : 'إنشاء حساب';
+  $('lSub').textContent = a
+    ? 'ادخل باسم المستخدم وكلمة السر.'
+    : 'أول مرة؟ اختار اسم مستخدم وكلمة سر، وهتدخل بيهم كل مرة تفتح فيها التطبيق.';
+  $('lGo').textContent = a ? 'دخول' : 'إنشاء الحساب';
+}
+function afterUnlock() {
+  $('lock').hidden = true;
+  sessionStorage.setItem('elev_ok', '1');
+  map.invalidateSize();
+  render();
+  if (!located) { located = true; locate(true); }
+}
+function lockApp() {
+  sessionStorage.removeItem('elev_ok');
+  closeSheet();
+  $('listPanel').classList.remove('show');
+  showLock();
+}
+
+async function tryLogin() {
+  const err = m => { $('lErr').textContent = m; };
+  if (!cryptoOk()) { err('المتصفح ده مش بيدعم التأمين. افتح التطبيق من الرابط (https) في كروم.'); return; }
+  const user = $('lUser').value.trim().toLowerCase();
+  const pass = $('lPass').value;
+  const a = getAuth();
+  $('lGo').disabled = true;
+  try {
+    if (!a) {
+      if (user.length < 3) return err('اسم المستخدم لازم 3 حروف على الأقل');
+      if (pass.length < 6) return err('كلمة السر لازم 6 حروف أو أرقام على الأقل');
+      if (pass !== $('lPass2').value) return err('كلمتين السر مش متطابقتين');
+      localStorage.setItem(AUTH_KEY, JSON.stringify(await makeAuth(user, pass)));
+      afterUnlock();
+      toast('تم إنشاء الحساب');
+      return;
+    }
+    const wait = Math.ceil((lockedUntil - Date.now()) / 1000);
+    if (wait > 0) return err('محاولات كتير غلط. استنى ' + wait + ' ثانية وجرّب تاني.');
+    const h = await hashPass(pass, a.salt, a.iters);
+    if (user === a.user && h === a.hash) { attempts = 0; afterUnlock(); return; }
+    attempts++;
+    if (attempts >= 5) { attempts = 0; lockedUntil = Date.now() + 30000; return err('محاولات كتير غلط. استنى 30 ثانية.'); }
+    err('اسم المستخدم أو كلمة السر غلط');
+    $('lPass').value = '';
+  } finally { $('lGo').disabled = false; }
+}
+$('lGo').onclick = tryLogin;
+[$('lUser'), $('lPass'), $('lPass2')].forEach(el => el.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); }));
+
+$('lForgot').onclick = async () => {
+  const ok = await askConfirm('نسيت كلمة السر؟',
+    'الطريقة الوحيدة إنك تمسح الحساب وكل البيانات من الموبايل ده، وبعدين تعمل حساب جديد وتستورد نسخة احتياطية (لو عندك ملف). متأكد؟',
+    'مسح كل حاجة', true);
+  if (!ok) return;
+  localStorage.removeItem(AUTH_KEY);
+  localStorage.removeItem(KEY);
+  sessionStorage.removeItem('elev_ok');
+  location.reload();
+};
+
+// قفل تلقائي لو التطبيق فضل في الخلفية 10 دقايق
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { hiddenAt = Date.now(); return; }
+  if (getAuth() && $('lock').hidden && hiddenAt && Date.now() - hiddenAt > AUTO_LOCK_MS) lockApp();
+  else render();
+});
+
+// قفل يدوي + تغيير بيانات الدخول
+$('lockBtn').onclick = () => { closeData(); lockApp(); };
+
+function openPw() {
+  const a = getAuth();
+  if (!a) return;
+  $('pwOld').value = ''; $('pwNew').value = ''; $('pwNew2').value = '';
+  $('pwUser').value = a.user;
+  $('pwErr').textContent = '';
+  $('dataModal').classList.remove('show');
+  $('backdrop').classList.add('show');
+  $('pwModal').classList.add('show');
+}
+function closePw() { $('pwModal').classList.remove('show'); $('backdrop').classList.remove('show'); }
+$('pwBtn').onclick = openPw;
+$('pwCancel').onclick = closePw;
+$('pwSave').onclick = async () => {
+  const err = m => { $('pwErr').textContent = m; };
+  const a = getAuth();
+  if (!a || !cryptoOk()) return;
+  const old = $('pwOld').value;
+  const user = $('pwUser').value.trim().toLowerCase();
+  const np = $('pwNew').value;
+  $('pwSave').disabled = true;
+  try {
+    if ((await hashPass(old, a.salt, a.iters)) !== a.hash) return err('كلمة السر الحالية غلط');
+    if (user.length < 3) return err('اسم المستخدم لازم 3 حروف على الأقل');
+    if (np && np.length < 6) return err('كلمة السر الجديدة لازم 6 حروف أو أرقام على الأقل');
+    if (np && np !== $('pwNew2').value) return err('كلمتين السر الجديدتين مش متطابقتين');
+    localStorage.setItem(AUTH_KEY, JSON.stringify(await makeAuth(user, np || old)));
+    closePw();
+    toast('تم حفظ بيانات الدخول الجديدة');
+  } finally { $('pwSave').disabled = false; }
+};
+
 // ---------------------------------------------------------------- start
 render();
-locate(true);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
+if (getAuth() && sessionStorage.getItem('elev_ok') === '1') afterUnlock();
+else showLock();
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
