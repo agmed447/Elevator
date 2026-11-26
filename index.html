@@ -57,9 +57,10 @@
   /* علامات العمارات */
   .pinwrap { width:124px; display:flex; flex-direction:column; align-items:center; direction:rtl; }
   .pinlabel { margin-top:-2px; max-width:124px; font-size:12px; font-weight:700; line-height:1.3; color:var(--ink); background:#fff;
-              border:2px solid var(--c); padding:1px 7px; border-radius:9px; text-align:center; box-shadow:0 1px 4px rgba(0,0,0,.35);
+              border:2px solid var(--c); padding:1px 7px; border-radius:9px; text-align:center;
               display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
   .nolabels .pinlabel { display:none; }
+  .moving .pinlabel { visibility:hidden; }
 
   .fab.r { left:auto; right:12px; }
   #compass { top:96px; width:44px; height:44px; }
@@ -257,6 +258,7 @@
   <button class="btn primary block" id="exportBtn" data-icon="download"> تصدير كل البيانات (ملف)</button>
   <button class="btn ghost block" id="importBtn" data-icon="upload"> استيراد البيانات من ملف</button>
   <button class="btn ghost block" id="importLinksBtn" data-icon="pin"> استيراد عمارات من روابط جوجل ماب</button>
+  <button class="btn ghost block" id="rotBtn" data-icon="rotate"> <span id="rotTxt"></span></button>
   <button class="btn ghost block" id="dataClose">إغلاق</button>
   <input type="file" id="importFile" accept=".json,application/json" hidden>
 </div>
@@ -428,6 +430,7 @@ const ICONS = {
   upload: '<path d="M12 16V5m0 0-4 4m4-4 4 4M5 20h14"/>',
   pin: '<path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/>',
   move: '<path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/>',
+  rotate: '<path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/>',
   prev: '<path d="m9 6 6 6-6 6"/>',
   next: '<path d="m15 6-6 6 6 6"/>'
 };
@@ -502,19 +505,23 @@ const nowY = () => new Date().getFullYear();
 const nowM = () => new Date().getMonth() + 1;
 
 // ---------------------------------------------------------------- map
-const map = L.map('map', { zoomControl: false, rotate: true, bearing: 0, touchRotate: true, rotateControl: false })
+const rotateOn = localStorage.getItem('elev_rot') !== '0';
+const map = L.map('map', {
+  zoomControl: false, preferCanvas: true, markerZoomAnimation: false,
+  rotate: rotateOn, bearing: 0, touchRotate: rotateOn, rotateControl: false
+})
   .setView([30.0444, 31.2357], 12);
 map.attributionControl.setPosition('topleft');
 
 const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19, attribution: '© OpenStreetMap'
+  maxZoom: 19, attribution: '© OpenStreetMap', keepBuffer: 1, updateWhenZooming: false
 });
 const sat = L.layerGroup([
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19, maxNativeZoom: 18, attribution: 'Esri, Maxar, Earthstar Geographics'
+    maxZoom: 19, maxNativeZoom: 18, attribution: 'Esri, Maxar, Earthstar Geographics', keepBuffer: 1, updateWhenZooming: false
   }),
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19, maxNativeZoom: 18
+    maxZoom: 19, maxNativeZoom: 18, keepBuffer: 1, updateWhenZooming: false
   })
 ]);
 let satOn = localStorage.getItem('elev_sat') === '1';
@@ -532,6 +539,16 @@ function updLabels() { $('map').classList.toggle('nolabels', map.getZoom() < 14)
 map.on('zoomend', updLabels);
 updLabels();
 
+// أثناء التقريب أو لفّ الخريطة بنخفي الأسماء مؤقتاً عشان الحركة تبقى أخف
+let movingTimer;
+function setMoving() {
+  $('map').classList.add('moving');
+  clearTimeout(movingTimer);
+  movingTimer = setTimeout(() => $('map').classList.remove('moving'), 220);
+}
+map.on('zoomstart', setMoving);
+map.on('rotate', setMoving);
+
 const layer = L.layerGroup().addTo(map);
 let meMarker = null;
 
@@ -541,7 +558,8 @@ function pinIcon(color, label) {
     iconSize: [124, 84],
     iconAnchor: [62, 38],
     html: `<div class="pinwrap" style="--c:${color}">
-      <svg viewBox="0 0 24 24" width="42" height="42" style="filter:drop-shadow(0 2px 2px rgba(0,0,0,.5))">
+      <svg viewBox="0 0 24 24" width="42" height="42">
+        <ellipse cx="12" cy="21.6" rx="4.2" ry="1.4" fill="rgba(0,0,0,.28)"/>
         <path d="M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z" fill="${color}" stroke="#fff" stroke-width="1"/>
       </svg>
       <div class="pinlabel">${esc(label)}</div></div>`
@@ -860,6 +878,11 @@ $('search').oninput = renderList;
 // ---------------------------------------------------------------- data: export / import
 function openData() { $('backdrop').classList.add('show'); $('dataModal').classList.add('show'); }
 function closeData() { $('dataModal').classList.remove('show'); $('backdrop').classList.remove('show'); }
+$('rotTxt').textContent = rotateOn ? 'تدوير الخريطة: شغّال (اضغط لإيقافه لو التطبيق تقيل)' : 'تدوير الخريطة: متوقف (اضغط لتشغيله)';
+$('rotBtn').onclick = () => {
+  localStorage.setItem('elev_rot', rotateOn ? '0' : '1');
+  location.reload();
+};
 $('dataBtn').onclick = openData;
 $('dataClose').onclick = closeData;
 
