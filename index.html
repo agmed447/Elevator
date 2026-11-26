@@ -39,8 +39,8 @@
   #map { flex:1; direction:ltr; position:relative; z-index:1; }
   .fab { position:absolute; z-index:1200; width:48px; height:48px; border-radius:50%; border:0; background:#fff; color:#333;
          display:flex; align-items:center; justify-content:center; box-shadow:0 2px 10px rgba(0,0,0,.35); left:12px; }
-  #locBtn { bottom:calc(74px + env(safe-area-inset-bottom)); }
-  #satBtn { bottom:calc(130px + env(safe-area-inset-bottom)); }
+  #locBtn { bottom:calc(96px + env(safe-area-inset-bottom)); }
+  #satBtn { bottom:calc(152px + env(safe-area-inset-bottom)); }
   #satBtn.on { background:var(--main); color:#fff; }
 
   #hint { position:absolute; z-index:1100; left:10px; right:10px; bottom:calc(10px + env(safe-area-inset-bottom)); direction:rtl;
@@ -112,6 +112,8 @@
   .chip.warranty { background:#fff8e1; color:#b26a00; border:1px solid #ffd54f; }
   .chip.ok { background:#e8f5e9; color:#1b5e20; }
   .chip.pend { background:#fff3e0; color:#e65100; }
+  .chip.expired { background:#111; color:#fff; }
+  .chip.iv { background:#e8eaf6; color:#283593; }
   .sheet .notes { color:var(--mut); margin:10px 0 0; font-size:14px; line-height:1.6; }
   .sheet .meta { color:var(--mut); font-size:13px; text-align:center; margin:2px 0 10px; }
   .row { display:flex; gap:8px; align-items:center; }
@@ -122,6 +124,7 @@
            display:flex; flex-direction:column; align-items:center; gap:3px; }
   .month .ic { width:19px; height:19px; }
   .month.done { background:var(--c); border-color:var(--c); color:#fff; }
+  .month.cov { background:#f1f8f1; border:1.5px dashed #81c784; color:#2e7d32; }
   .month.cur { outline:2px solid var(--main); outline-offset:1px; }
   .actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:16px; }
 
@@ -134,6 +137,12 @@
   .modal input[type=text]:focus, .modal textarea:focus { outline:2px solid var(--main); border-color:transparent; }
   .chk { display:flex; align-items:center; gap:10px; padding:11px 12px; margin-bottom:14px; background:#fff8e1; border-radius:12px; font-size:15px; font-weight:600; color:#7a4a00; }
   .chk input { width:20px; height:20px; accent-color:#f9a825; }
+  .chk.dark { background:#eceff1; color:#111; }
+  .chk.dark input { accent-color:#111; }
+  .seg { display:flex; gap:8px; margin-bottom:14px; }
+  .seg label { flex:1; display:flex; align-items:center; gap:8px; padding:11px 10px; border:1px solid var(--line); border-radius:12px; font-size:13.5px; font-weight:600; line-height:1.4; }
+  .seg label:has(input:checked) { border-color:var(--main); background:#eef1fb; color:var(--main2); }
+  .seg input { width:18px; height:18px; accent-color:var(--main); flex:none; }
   #linksModal { z-index:2300; }
   #linksModal textarea { width:100%; height:170px; padding:10px; border:1px solid var(--line); border-radius:12px; font-size:13px; resize:none; margin-bottom:8px; }
   #linksMsg { white-space:pre-line; font-size:13px; margin-bottom:8px; }
@@ -219,6 +228,7 @@
     <span class="lg"><i style="background:#43a047"></i>عادي تم</span>
     <span class="lg"><i style="background:#f9a825"></i>ضمان لسه</span>
     <span class="lg"><i style="background:#1b5e20"></i>ضمان تم</span>
+    <span class="lg"><i style="background:#111"></i>عقد غير مجدد</span>
   </div>
 </div>
 
@@ -230,6 +240,11 @@
   <input type="text" id="fName" placeholder="اسم صاحب المصعد">
   <input type="text" id="fNotes" placeholder="ملاحظات (اختياري)">
   <label class="chk"><input type="checkbox" id="fWarranty"> مصعد ضمان</label>
+  <label class="chk dark"><input type="checkbox" id="fExpired"> العقد لسه ما اتجددش (علامة سوداء)</label>
+  <div class="seg">
+    <label><input type="radio" name="iv" value="1" checked> زيارة كل شهر</label>
+    <label><input type="radio" name="iv" value="2"> كل شهرين (عقد 6 شهور)</label>
+  </div>
   <div class="row">
     <button class="btn ghost" id="fCancel" style="flex:1">إلغاء</button>
     <button class="btn primary" id="fSave" style="flex:1">حفظ</button>
@@ -298,8 +313,22 @@ const matches = (b, q) => { const nq = norm(q); return !nq || norm(b.name).inclu
 
 // الألوان: عادي (أحمر ← أخضر) / ضمان (أصفر ← أخضر غامق)
 function colorOf(b, done) {
+  if (b.expired) return '#111111';
   if (b.type === 'warranty') return done ? '#1b5e20' : '#f9a825';
   return done ? '#43a047' : '#d32f2f';
+}
+
+// حالة العمارة في شهر معين:
+// done = فيه زيارة في الشهر نفسه / covered = زيارة قبلها لسه سارية (للي بيتزاروا كل شهرين) / pending = لسه
+function coverage(b, list, y, m) {
+  const iv = b.interval === 2 ? 2 : 1;
+  if (list.includes(ym(y, m))) return { state: 'done' };
+  for (let i = 1; i < iv; i++) {
+    let mm = m - i, yy = y;
+    while (mm < 1) { mm += 12; yy--; }
+    if (list.includes(ym(yy, mm))) return { state: 'covered', due: ((m + iv - i - 1) % 12) + 1 };
+  }
+  return { state: 'pending' };
 }
 
 function normalizeData(d) {
@@ -312,7 +341,9 @@ function normalizeData(d) {
       notes: typeof b.notes === 'string' ? b.notes : '',
       lat: +b.lat,
       lng: +b.lng,
-      type: b.type === 'warranty' ? 'warranty' : 'regular'
+      type: b.type === 'warranty' ? 'warranty' : 'regular',
+      expired: !!b.expired,
+      interval: +b.interval === 2 ? 2 : 1
     }));
   const visits = {};
   buildings.forEach(b => {
@@ -466,6 +497,7 @@ function mergeData(d) {
   return added;
 }
 const isDone = (id, y, m) => (data.visits[id] || []).includes(ym(y, m));
+const statusOf = (b, y, m) => coverage(b, data.visits[b.id] || [], y, m);
 const nowY = () => new Date().getFullYear();
 const nowM = () => new Date().getMonth() + 1;
 
@@ -519,10 +551,10 @@ function pinIcon(color, label) {
 function render() {
   layer.clearLayers();
   const y = nowY(), m = nowM();
-  let remaining = 0;
+  let remaining = 0, active = 0, expired = 0;
   data.buildings.forEach(b => {
-    const done = isDone(b.id, y, m);
-    if (!done) remaining++;
+    const done = statusOf(b, y, m).state !== 'pending';
+    if (b.expired) expired++; else { active++; if (!done) remaining++; }
     if (b.id === movingId) return;
     L.marker([b.lat, b.lng], {
       icon: pinIcon(colorOf(b, done), b.name),
@@ -532,8 +564,10 @@ function render() {
   });
   const total = data.buildings.length;
   $('monthLabel').textContent = MONTHS[m - 1] + ' ' + y;
-  $('remainLabel').textContent = total ? `باقي ${remaining} من ${total}` : 'لسه مفيش عمارات';
-  $('progFill').style.width = (total ? ((total - remaining) / total) * 100 : 0) + '%';
+  $('remainLabel').textContent = total
+    ? (active ? `باقي ${remaining} من ${active}` : 'مفيش عمارات نشطة') + (expired ? ` · غير مجدد ${expired}` : '')
+    : 'لسه مفيش عمارات';
+  $('progFill').style.width = (active ? ((active - remaining) / active) * 100 : 0) + '%';
   $('emptyCard').hidden = total > 0;
 }
 
@@ -571,7 +605,7 @@ function startMove(id) {
   if (!b) return;
   closeSheet();
   movingId = id;
-  $('crosshair').querySelector('path').setAttribute('fill', colorOf(b, isDone(b.id, nowY(), nowM())));
+  $('crosshair').querySelector('path').setAttribute('fill', colorOf(b, statusOf(b, nowY(), nowM()).state !== 'pending'));
   MOVE_HIDE.forEach(i => $(i).style.display = 'none');
   $('moveUI').hidden = false;
   $('movebar').hidden = false;
@@ -610,6 +644,8 @@ function openForm(id) {
   $('fName').value = b ? b.name : '';
   $('fNotes').value = b ? b.notes : '';
   $('fWarranty').checked = b ? b.type === 'warranty' : false;
+  $('fExpired').checked = b ? !!b.expired : false;
+  document.querySelector('input[name="iv"][value="' + (b && b.interval === 2 ? 2 : 1) + '"]').checked = true;
   $('backdrop').classList.add('show');
   $('form').classList.add('show');
   setTimeout(() => $('fName').focus(), 50);
@@ -624,14 +660,16 @@ $('fSave').onclick = () => {
   if (!name) { $('fName').focus(); return; }
   const notes = $('fNotes').value.trim();
   const type = $('fWarranty').checked ? 'warranty' : 'regular';
+  const expired = $('fExpired').checked;
+  const interval = +document.querySelector('input[name="iv"]:checked').value;
   if (editingId) {
     const b = data.buildings.find(x => x.id === editingId);
-    b.name = name; b.notes = notes; b.type = type;
+    b.name = name; b.notes = notes; b.type = type; b.expired = expired; b.interval = interval;
     save(); closeForm(); render(); renderSheet();
     toast('تم حفظ التعديل');
   } else {
     const id = 'b' + Date.now();
-    data.buildings.push({ id, name, notes, type, lat: pendingPos.lat, lng: pendingPos.lng });
+    data.buildings.push({ id, name, notes, type, expired, interval, lat: pendingPos.lat, lng: pendingPos.lng });
     save(); closeForm(); render();
     toast('تمت إضافة العمارة');
   }
@@ -657,13 +695,19 @@ function renderSheet() {
   const b = data.buildings.find(x => x.id === curId);
   if (!b) return;
   const ny = nowY(), nm = nowM();
-  const curDone = isDone(b.id, ny, nm);
+  const st = statusOf(b, ny, nm);
+  const curDone = st.state !== 'pending';
+  const statusChip = b.expired ? '' :
+    st.state === 'done' ? '<span class="chip ok">تمت صيانة هذا الشهر</span>' :
+    st.state === 'covered' ? `<span class="chip ok">مغطّى — الزيارة الجاية ${MONTHS[st.due - 1]}</span>` :
+    '<span class="chip pend">لسه هذا الشهر</span>';
   const doneInYear = (data.visits[b.id] || []).filter(k => k.startsWith(curYear + '-')).length;
   let grid = '';
   for (let m = 1; m <= 12; m++) {
     const done = isDone(b.id, curYear, m);
+    const cov = !done && statusOf(b, curYear, m).state === 'covered';
     const cur = curYear === ny && m === nm;
-    grid += `<button class="month ${done ? 'done' : ''} ${cur ? 'cur' : ''}" data-m="${m}">${ic(done ? 'check' : 'circle')}<span>${MONTHS[m - 1]}</span></button>`;
+    grid += `<button class="month ${done ? 'done' : ''} ${cov ? 'cov' : ''} ${cur ? 'cur' : ''}" data-m="${m}">${ic(done ? 'check' : 'circle')}<span>${MONTHS[m - 1]}</span></button>`;
   }
   $('sheet').innerHTML = `
     <div class="head">
@@ -672,7 +716,9 @@ function renderSheet() {
         <h2>${esc(b.name)}</h2>
         <div class="chips">
           ${b.type === 'warranty' ? '<span class="chip warranty">مصعد ضمان</span>' : ''}
-          <span class="chip ${curDone ? 'ok' : 'pend'}">${curDone ? 'تمت صيانة هذا الشهر' : 'لسه هذا الشهر'}</span>
+          ${b.expired ? '<span class="chip expired">العقد لسه ما اتجددش</span>' : ''}
+          ${b.interval === 2 ? '<span class="chip iv">زيارة كل شهرين</span>' : ''}
+          ${statusChip}
         </div>
       </div>
     </div>
@@ -681,6 +727,7 @@ function renderSheet() {
       <button id="yPrev" aria-label="السنة السابقة">${ic('prev')}</button><span>${curYear}</span><button id="yNext" aria-label="السنة التالية">${ic('next')}</button>
     </div>
     <div class="meta">تمت صيانة ${doneInYear} من 12 شهر</div>
+    ${b.interval === 2 ? '<div class="meta" style="margin-top:-6px">الخانة المنقّطة = مغطّاة بزيارة الشهر اللي قبلها</div>' : ''}
     <div class="grid" style="--c:${colorOf(b, true)}">${grid}</div>
     <div class="actions">
       <a class="btn primary" target="_blank" rel="noopener"
@@ -724,10 +771,15 @@ L.DomEvent.disableClickPropagation($('qWrap'));
 L.DomEvent.disableScrollPropagation($('qWrap'));
 
 function itemHtml(b, y, m) {
-  const done = isDone(b.id, y, m);
+  const st = statusOf(b, y, m);
+  const parts = [];
+  if (b.type === 'warranty') parts.push('ضمان');
+  if (b.expired) parts.push('عقد غير مجدد');
+  if (b.interval === 2) parts.push('كل شهرين');
+  if (!b.expired) parts.push(st.state === 'done' ? 'تمت صيانة الشهر ده' : st.state === 'covered' ? 'مغطّى' : 'لسه');
   return `<div class="item" data-id="${b.id}">
-    <span class="dot" style="background:${colorOf(b, done)}"></span>
-    <div><b>${esc(b.name)}</b><small>${b.type === 'warranty' ? 'ضمان · ' : ''}${done ? 'تمت صيانة الشهر ده' : 'لسه'}</small></div></div>`;
+    <span class="dot" style="background:${colorOf(b, st.state !== 'pending')}"></span>
+    <div><b>${esc(b.name)}</b><small>${parts.join(' · ')}</small></div></div>`;
 }
 
 function renderSearch() {
@@ -765,10 +817,12 @@ function openList() { $('listPanel').classList.add('show'); $('search').value = 
 function renderStats() {
   const y = nowY(), m = nowM();
   const s = { regular: { rem: 0, tot: 0 }, warranty: { rem: 0, tot: 0 } };
+  let expired = 0;
   data.buildings.forEach(b => {
+    if (b.expired) { expired++; return; }
     const t = b.type === 'warranty' ? 'warranty' : 'regular';
     s[t].tot++;
-    if (!isDone(b.id, y, m)) s[t].rem++;
+    if (statusOf(b, y, m).state === 'pending') s[t].rem++;
   });
   const remCol = (n, c) => `<td style="color:${n ? c : '#2e7d32'};font-weight:700">${n}</td>`;
   $('stats').innerHTML = `
@@ -778,6 +832,7 @@ function renderStats() {
       <tr><td class="k"><span class="dotk" style="background:#d32f2f"></span>عادي</td>${remCol(s.regular.rem, '#d32f2f')}<td>${s.regular.tot}</td></tr>
       <tr><td class="k"><span class="dotk" style="background:#f9a825"></span>ضمان</td>${remCol(s.warranty.rem, '#e65100')}<td>${s.warranty.tot}</td></tr>
       <tr class="all"><td class="k">الكل</td><td>${s.regular.rem + s.warranty.rem}</td><td>${s.regular.tot + s.warranty.tot}</td></tr>
+      <tr><td class="k"><span class="dotk" style="background:#111"></span>عقد غير مجدد</td><td>—</td><td>${expired}</td></tr>
     </table></div>`;
 }
 
@@ -873,7 +928,7 @@ $('linksGo').onclick = () => {
     if (exists) { dup++; return; }
     data.buildings.push({
       id: 'b' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
-      name: o.name, notes: '', type, lat: o.lat, lng: o.lng
+      name: o.name, notes: '', type, expired: false, interval: 1, lat: o.lat, lng: o.lng
     });
     added++;
   });
